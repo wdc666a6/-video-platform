@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn clean:*)",
+      "Bash(timeout 10 mvn spring-boot:run)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8081)",
+      "Bash(timeout 15 mvn spring-boot:run)",
+      "Bash(findstr :8082)",
+      "Bash(mvn compile:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill:*)",
+      "Bash(./mvnw clean:*)",
+      "Bash(rm -rf target)",
+      "Bash(./mvnw compile:*)",
+      "Bash(xargs -I {} taskkill //F //PID {})",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); videos=data[''''data'''']; v8=[v for v in videos if v[''''id'''']==8][0]; print\\(fCover: {v8.get\\(''''coverUrl'''', ''''N/A''''\\)}\\)\")",
+      "Bash(find src:*)",
+      "Bash(grep -E \"^-.*\\\\.md$|^d.*docs\")",
+      "Bash(powershell -Command \"Remove-Item -Path 'D:/VideoStudio/video-platform/.git/index.lock' -Force -ErrorAction SilentlyContinue; cd 'D:/VideoStudio/video-platform'; git commit -m 'Initial commit: 视频平台项目'\")"
+    ]
+  }
+}

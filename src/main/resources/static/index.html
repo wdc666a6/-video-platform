@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>SpringVideo - 影视大全</title>
+    <link rel="stylesheet" href="css/common.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body { background-color: var(--bg-primary); color: var(--text-primary); font-family: "Microsoft YaHei", sans-serif; margin: 0; padding: 0; }
+        .container { max-width: 1400px; margin: 20px auto; padding: 0 var(--spacing-md); }
+
+        /* 筛选区样式 */
+        .filter-section { background: var(--bg-secondary); padding: var(--spacing-lg); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: var(--spacing-xl); }
+        .filter-row { display: flex; align-items: baseline; margin-bottom: 15px; border-bottom: 1px dashed var(--border-color); padding-bottom: 10px; }
+        .filter-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .filter-label { color: var(--text-tertiary); width: 60px; font-size: 14px; flex-shrink: 0; }
+        .filter-options { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); flex: 1; }
+        .filter-btn {
+            padding: 4px 12px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; color: var(--text-primary); transition: all 0.2s;
+        }
+        .filter-btn:hover { color: #ff9800; }
+        .filter-btn.active { background: #ff9800; color: white; }
+
+        /* --- 新增：轮播图组件样式 --- */
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            height: 400px; /* 轮播高度 */
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            background: #000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .carousel-track {
+            display: flex;
+            height: 100%;
+            transition: transform 0.5s ease-in-out; /* 滑动动画 */
+        }
+
+        .carousel-item {
+            min-width: 100%; /* 每一项占满容器宽度 */
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 模糊背景 */
+        .hero-bg {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-size: cover;
+            background-position: center;
+            filter: blur(20px) brightness(0.4); /* 模糊且变暗 */
+            z-index: 1;
+            transform: scale(1.1); /* 放大一点避免白边 */
+        }
+
+        /* 内容层 */
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            width: 90%;
+            max-width: 1000px;
+            align-items: center;
+            gap: 40px;
+            cursor: pointer;
+        }
+
+        /* 左侧海报 */
+        .hero-poster {
+            width: 220px;
+            height: 330px;
+            object-fit: cover;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            border: 2px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s;
+        }
+        .hero-content:hover .hero-poster { transform: scale(1.03); }
+
+        /* 右侧信息 */
+        .hero-info { color: #fff; flex: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .hero-title { font-size: 36px; font-weight: bold; margin: 0 0 15px 0; color: #fff; }
+        .hero-meta { display: flex; gap: 15px; margin-bottom: 20px; font-size: 14px; }
+        .hero-tag { background: rgba(255,152,0,0.2); color: #ff9800; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,152,0,0.5); }
+        .hero-score { color: #ff9800; font-weight: bold; font-size: 18px; }
+        .hero-desc { color: #ddd; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px;}
+
+        /* 切换按钮 */
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.3);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            font-size: 24px;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .carousel-btn:hover { background: rgba(255,152,0,0.8); }
+        .prev-btn { left: 20px; }
+        .next-btn { right: 20px; }
+
+        /* 换一批按钮浮动在右上角 */
+        .refresh-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 5px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s;
+        }
+        .refresh-btn:hover { background: #ff9800; border-color: #ff9800; }
+
+        /* 指示器圆点 */
+        .indicators {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            gap: 10px;
+        }
+        .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .dot.active { background: #ff9800; transform: scale(1.2); }
+
+        /* 推荐区域 */
+        .recommend-box { background: var(--bg-tertiary); color: var(--text-primary); padding: var(--spacing-lg); border-radius: var(--radius-md); margin-bottom: var(--spacing-xl); position: relative; overflow: hidden; }
+        .rec-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;}
+
+        /* 视频网格 */
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 25px 20px; }
+        .video-card { background: var(--bg-secondary); border-radius: var(--radius-md); overflow: hidden; transition: transform 0.2s; cursor: pointer; box-shadow: var(--shadow-sm); position: relative; }
+        .video-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+        .cover-wrapper { position: relative; height: 260px; overflow: hidden; }
+        .cover { width: 100%; height: 100%; object-fit: cover; }
+        .score-tag { position: absolute; right: 5px; bottom: 5px; background: rgba(0,0,0,0.7); color: var(--color-primary); padding: 2px 6px; border-radius: var(--radius-sm); font-size: 12px; font-weight: bold; }
+        .info { padding: 10px; }
+        .title { margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); font-weight: bold;}
+        .meta { color: var(--text-tertiary); font-size: 12px; margin-top: 6px; display: flex; justify-content: space-between; }
+
+        /* 暂无数据 */
+        .empty-tip {
+            text-align: center;
+            color: var(--text-tertiary);
+            margin-top: var(--spacing-xl);
+            padding: var(--spacing-xl);
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            border: 1px dashed var(--border-color);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: var(--spacing-md); opacity: 0.5; }
+        .empty-title { font-size: 16px; color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
+        .empty-desc { font-size: 13px; color: var(--text-muted); }
+
+        /* 分页样式 */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: var(--spacing-xl);
+            padding: var(--spacing-lg) 0;
+            gap: 10px;
+        }
+        .pagination-info {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-right: 20px;
+        }
+        .pagination-btn {
+            padding: 8px 16px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+        .pagination-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .pagination-btn.active {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+        .pagination-pages {
+            display: flex;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="navbar">
+        <a class="logo" @click="reset">SpringVideo</a>
+        <div class="nav-links">
+            <a class="nav-link active" @click="reset">首页</a>
+            <a v-if="currentUser" class="nav-link" href="profile.html">个人中心</a>
+        </div>
+        <div class="right-panel">
+            <div class="search-box">
+                <input type="text" v-model="filter.keyword" placeholder="搜全站..." @keyup.enter="fetchVideos">
+                <button @click="fetchVideos">🔍</button>
+            </div>
+            <div class="user-panel" style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span v-if="currentUser" style="color: var(--text-secondary)">Hi, <a href="profile.html" style="color: var(--color-primary); text-decoration: none;">{{ currentUser.username }}</a></span>
+                <span v-if="currentUser" @click="logout" style="cursor: pointer; color: var(--text-tertiary);">[退出]</span>
+                <a v-else href="login.html" class="btn btn-primary">登录</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+<!--        &lt;!&ndash; 调试信息 &ndash;&gt;-->
+<!--        <div style="color: #666; font-size: 12px; margin-bottom: 10px;">-->
+<!--            调试: Vue已加载 | 列表数量: {{ pageData.list.length }} | 总数: {{ pageData.total }} | 当前页: {{ currentPage }} | Loading: {{ loading }}-->
+<!--        </div>-->
+<!--        <div v-if="error" style="color: #ff4d4f; padding: 10px; background: rgba(255,77,79,0.1); border-radius: 4px; margin-bottom: 10px;">-->
+<!--            错误: {{ error }}-->
+<!--        </div>-->
+        <div class="carousel-container" v-if="currentUser && recommendList.length > 0"
+             @mouseenter="stopAutoPlay" @mouseleave="startAutoPlay">
+
+            <button class="refresh-btn" @click="fetchRecommendations">🔄 换一批</button>
+
+            <div class="carousel-track" :style="{ transform: `translateX(-${currentIndex * 100}%)` }">
+                <div class="carousel-item" v-for="video in recommendList" :key="video.id">
+                    <div class="hero-bg" :style="{ backgroundImage: `url(${getCoverUrl(video)})` }"></div>
+
+                    <div class="hero-content" @click="goToDetail(video.id)">
+                        <img :src="getCoverUrl(video)" class="hero-poster" loading="eager" @error="imgError">
+
+                        <div class="hero-info">
+                            <h2 class="hero-title">{{ video.title }}</h2>
+                            <div class="hero-meta">
+                                <span class="hero-score">{{ video.score }} 分</span>
+                                <span class="hero-tag" v-if="video.year">{{ video.year }}</span>
+                                <span class="hero-tag" v-if="video.region">{{ video.region }}</span>
+                                <span class="hero-tag" v-if="video.category">{{ video.category.split(',')[0] }}</span>
+                            </div>
+                            <p class="hero-desc">{{ video.description || '暂无简介...' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="carousel-btn prev-btn" @click="prevSlide">❮</button>
+            <button class="carousel-btn next-btn" @click="nextSlide">❯</button>
+
+            <div class="indicators">
+                <span v-for="(item, index) in recommendList" :key="index"
+                      class="dot" :class="{active: currentIndex === index}"
+                      @click="currentIndex = index">
+                </span>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-row">
+                <span class="filter-label">频道</span>
+                <div class="filter-options">
+                    <span class="filter-btn" :class="{active: filter.type === ''}" @click="changeFilter('type', '')">首页</span>
+                    <span class="filter-btn" :class="{active: filter.type === 'MOVIE'}" @click="changeFilter('type', 'MOVIE')">电影</span>
+                    <span class="filter-btn" :class="{active: filter.type === 'SERIES'}" @click="changeFilter('type', 'SERIES')">剧集</span>
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <span class="filter-label">类型</span>
+                <div class="filter-options">
+                    <span class="filter-btn" :class="{active: filter.category === ''}" @click="changeFilter('category', '')">全部</span>
+                    <span class="filter-btn" v-for="cat in options.categories" :class="{active: filter.category === cat}" @click="changeFilter('category', cat)">{{ cat }}</span>
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <span class="filter-label">地区</span>
+                <div class="filter-options">
+                    <span class="filter-btn" :class="{active: filter.region === ''}" @click="changeFilter('region', '')">全部</span>
+                    <span class="filter-btn" v-for="reg in options.regions" :class="{active: filter.region === reg}" @click="changeFilter('region', reg)">{{ reg }}</span>
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <span class="filter-label">年份</span>
+                <div class="filter-options">
+                    <span class="filter-btn" :class="{active: filter.year === ''}" @click="changeFilter('year', '')">全部</span>
+                    <span class="filter-btn" v-for="y in options.years" :class="{active: filter.year === y}" @click="changeFilter('year', y)">{{ y }}</span>
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <span class="filter-label">语言</span>
+                <div class="filter-options">
+                    <span class="filter-btn" :class="{active: filter.language === ''}" @click="changeFilter('language', '')">全部</span>
+                    <span class="filter-btn" v-for="lang in options.languages" :class="{active: filter.language === lang}" @click="changeFilter('language', lang)">{{ lang }}</span>
+                </div>
+            </div>
+
+            <div class="filter-row" style="border-bottom: none">
+                <span class="filter-label">排序</span>
+                <div class="filter-options">
+                    <span class="filter-btn" :class="{active: filter.sort === 'time'}" @click="changeFilter('sort', 'time')">最新上映</span>
+                    <span class="filter-btn" :class="{active: filter.sort === 'score'}" @click="changeFilter('sort', 'score')">高分优先</span>
+                    <span class="filter-btn" :class="{active: filter.sort === 'id'}" @click="changeFilter('sort', 'id')">最新入库</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="video-grid">
+            <div class="video-card" v-for="video in pageData.list" :key="video.id" @click="goToDetail(video.id)">
+                <div class="cover-wrapper">
+                    <img :src="getCoverUrl(video)" class="cover" alt="封面" loading="lazy" @error="imgError">
+                    <div class="score-tag">{{ video.score }}</div>
+                </div>
+                <div class="info">
+                    <h3 class="title">{{ video.title }}</h3>
+                    <div class="meta">
+                        <span>{{ video.year }} / {{ video.region }}</span>
+                        <span v-if="video.category">{{ video.category.split(',')[0] }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="pageData.list.length === 0" class="empty-tip">
+            <div class="empty-icon">🎬</div>
+            <div class="empty-title">暂无相关影片</div>
+            <div class="empty-desc">试试调整筛选条件或搜索其他关键词吧~</div>
+        </div>
+
+        <!-- 分页控件 -->
+        <div v-if="pageData.totalPages > 1" class="pagination-container">
+            <span class="pagination-info">
+                共 {{ pageData.total }} 条，第 {{ currentPage }} / {{ pageData.totalPages }} 页
+            </span>
+            <button class="pagination-btn" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">上一页</button>
+            <div class="pagination-pages">
+                <button v-for="pageNum in displayedPages" :key="pageNum"
+                        class="pagination-btn" :class="{active: currentPage === pageNum}"
+                        @click="goToPage(pageNum)">
+                    {{ pageNum }}
+                </button>
+            </div>
+            <button class="pagination-btn" @click="goToPage(currentPage + 1)" :disabled="currentPage === pageData.totalPages">下一页</button>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div v-if="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">加载中...</div>
+    </div>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                pageData: { list: [], total: 0, pageNum: 1, pageSize: 30, totalPages: 0 },
+                recommendList: [],
+                currentUser: null,
+                loading: true,  // 初始设为 true，确保页面加载时显示 loading
+                currentPage: 1,
+                error: null,  // 添加错误状态
+
+                currentIndex: 0, // 当前显示第几张
+                autoPlayTimer: null, // 定时器
+                imageVersion: Date.now(), // 图片版本号，用于破坏缓存
+                // 筛选状态
+                filter: { keyword: '', type: '', category: '', region: '', year: '', language: '', sort: 'time' },
+                // 筛选选项配置 (静态配置)
+                options: {
+                    categories: ["剧情", "喜剧", "动作", "爱情", "科幻", "悬疑", "惊悚", "恐怖", "犯罪", "同性", "音乐", "传记", "历史", "战争", "奇幻", "冒险", "灾难", "武侠", "古装", "青春", "家庭", "儿童", "运动", "纪录片","动画", "偶像", "宫廷", "谍战", "军旅", "神话", "穿越", "商战", "校园"],
+                    regions: ["大陆", "香港", "台湾", "美国", "韩国", "日本", "欧美","其他"],
+                    years: [2025, 2024, 2023, 2022, 2021, 2020, 2019,2018, 2017,2016,2015,2014,2013,2012,2011, 2010, 2009, 2008, 2007, 2006, 2005, 2004, 2003, 2002, 2001, 2000],
+                    languages: ["国语", "英语", "粤语", "韩语", "日语", "沪语", "德语", "其他语言"]
+                }
+            }
+        },
+        computed: {
+            displayedPages() {
+                const pages = [];
+                const total = this.pageData.totalPages;
+                const current = this.currentPage;
+                const maxDisplay = 7; // 最多显示7个页码
+
+                if (total <= maxDisplay) {
+                    for (let i = 1; i <= total; i++) {
+                        pages.push(i);
+                    }
+                } else {
+                    let start = Math.max(1, current - 3);
+                    let end = Math.min(total, current + 3);
+
+                    if (current <= 4) {
+                        end = maxDisplay;
+                    } else if (current >= total - 3) {
+                        start = total - maxDisplay + 1;
+                    }
+
+                    for (let i = start; i <= end; i++) {
+                        pages.push(i);
+                    }
+                }
+                return pages;
+            }
+        },
+        mounted() {
+            console.log('Vue app mounted');
+            try {
+                // 注册 Service Worker（图片缓存）
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(reg => {
+                            console.log('[SW] 注册成功:', reg.scope);
+                        })
+                        .catch(err => {
+                            console.log('[SW] 注册失败:', err);
+                        });
+                }
+
+                // 检查登录
+                const userStr = localStorage.getItem('currentUser');
+                if (userStr) {
+                    this.currentUser = JSON.parse(userStr);
+                    this.fetchRecommendations();
+                }
+                // 初始加载
+                this.fetchVideos();
+
+                this.startAutoPlay();
+            } catch (error) {
+                console.error('Mounted hook error:', error);
+            }
+        },
+        methods: {
+            fetchVideos() {
+                this.loading = true;
+                this.error = null;
+                // 安全超时：5秒后强制关闭 loading
+                setTimeout(() => {
+                    if (this.loading) {
+                        console.warn('Loading超时，强制关闭');
+                        this.loading = false;
+                    }
+                }, 5000);
+
+                // 构建参数
+                const params = {
+                    keyword: this.filter.keyword,
+                    type: this.filter.type,
+                    category: this.filter.category,
+                    region: this.filter.region,
+                    year: this.filter.year,
+                    language: this.filter.language,
+                    sort: this.filter.sort,
+                    page: this.currentPage,
+                    pageSize: 30
+                };
+
+                console.log('正在请求API:', '/api/video/list-page', params);
+
+                axios.get('/api/video/list-page', { params: params })
+                    .then(res => {
+                        console.log('API响应:', res.data);
+                        if (res.data.code === 200) {
+                            this.pageData = res.data.data;
+                            this.imageVersion = Date.now(); // 更新图片版本号，强制刷新图片
+                            console.log('分页数据:', this.pageData);
+                        } else {
+                            console.error('API返回错误:', res.data.msg);
+                            this.error = res.data.msg;
+                        }
+                    })
+                    .catch(err => {
+                        console.error('加载视频列表失败:', err);
+                        this.error = '加载失败: ' + (err.message || '未知错误');
+                    })
+                    .finally(() => {
+                        this.loading = false;
+                        console.log('加载完成，loading=false');
+                    });
+            },
+            // 统一的筛选点击事件
+            changeFilter(key, val) {
+                this.filter[key] = val;
+                this.currentPage = 1; // 重置到第一页
+                this.fetchVideos();
+            },
+            goToPage(pageNum) {
+                if (pageNum < 1 || pageNum > this.pageData.totalPages) return;
+                this.currentPage = pageNum;
+                this.fetchVideos();
+                // 滚动到顶部
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+            fetchRecommendations() {
+                if (!this.currentUser) return;
+                axios.get('/api/video/recommend', { params: { userId: this.currentUser.id } })
+                    .then(res => {
+                        if (res.data.code === 200) {
+                            this.recommendList = res.data.data;
+                            this.imageVersion = Date.now(); // 更新图片版本号
+                            this.currentIndex = 0; // 换一批时，重置回第一张
+                        }
+                    });
+            },
+            // --- 轮播逻辑 ---
+            nextSlide() {
+                if(this.recommendList.length === 0) return;
+                // 取模运算实现循环：(0+1)%8 = 1 ... (7+1)%8 = 0
+                this.currentIndex = (this.currentIndex + 1) % this.recommendList.length;
+            },
+            prevSlide() {
+                if(this.recommendList.length === 0) return;
+                // (0 - 1 + 8) % 8 = 7，实现倒退循环
+                this.currentIndex = (this.currentIndex - 1 + this.recommendList.length) % this.recommendList.length;
+            },
+            startAutoPlay() {
+                // 防止重复启动
+                if (this.autoPlayTimer) clearInterval(this.autoPlayTimer);
+                // 每 4 秒切换一次
+                this.autoPlayTimer = setInterval(this.nextSlide, 4000);
+            },
+            stopAutoPlay() {
+                clearInterval(this.autoPlayTimer);
+                this.autoPlayTimer = null;
+            },
+            goToDetail(id) {
+                window.location.href = 'detail.html?id=' + id;
+            },
+            reset() {
+                this.filter = { keyword: '', type: '', category: '', region: '', year: '', language: '', sort: 'time' };
+                this.currentPage = 1;
+                this.fetchVideos();
+            },
+            logout() {
+                localStorage.removeItem('currentUser');
+                window.location.reload();
+            },
+            // 获取带版本号的封面URL，优先使用本地封面
+            getCoverUrl(videoOrUrl) {
+                let coverUrl;
+                // 如果传入的是视频对象
+                if (typeof videoOrUrl === 'object' && videoOrUrl !== null) {
+                    // 优先使用本地封面
+                    coverUrl = videoOrUrl.localCoverPath || videoOrUrl.coverUrl;
+                } else {
+                    coverUrl = videoOrUrl;
+                }
+                if (!coverUrl) return null;
+                // 如果URL已经有参数，使用&，否则使用?
+                const separator = coverUrl.includes('?') ? '&' : '?';
+                return `${coverUrl}${separator}v=${this.imageVersion}`;
+            },
+            imgError(event) {
+                // 使用 SVG 占位图替代
+                event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400"%3E%3Crect fill="%23222" width="300" height="400"/%3E%3Ctext fill="%23666" font-family="Arial" font-size="24" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3E暂无封面%3C/text%3E%3C/svg%3E';
+            }
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

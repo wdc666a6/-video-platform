@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpringVideo - 后台管理系统</title>
+    <meta name="referrer" content="no-referrer">
+    <link rel="stylesheet" href="css/common.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: "Microsoft YaHei", sans-serif; background: var(--bg-primary); height: 100vh; display: flex; }
+
+        /* 侧边栏 */
+        .sidebar { width: 240px; background: var(--bg-tertiary); color: var(--text-primary); display: flex; flex-direction: column; border-right: 1px solid var(--border-color); }
+        .logo { height: 60px; line-height: 60px; text-align: center; font-size: 20px; font-weight: bold; background: var(--bg-elevated); color: var(--color-primary); }
+        .menu-item { padding: 15px 20px; cursor: pointer; transition: background 0.3s; color: var(--text-secondary); display: flex; align-items: center; }
+        .menu-item:hover { color: var(--text-primary); background: var(--bg-hover); }
+        .menu-item.active { background: var(--color-primary); color: white; }
+        .menu-item span { margin-left: 10px; }
+
+        /* 主内容区 */
+        .main { flex: 1; padding: var(--spacing-lg); overflow-y: auto; }
+        .header { background: var(--bg-secondary); padding: 15px 20px; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); margin-bottom: var(--spacing-lg); }
+        .content-card { background: var(--bg-secondary); padding: var(--spacing-lg); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); min-height: 500px; }
+
+        /* 表格样式 */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid var(--border-color); padding: 12px; text-align: left; font-size: 14px; }
+        th { background: var(--bg-elevated); font-weight: 600; color: var(--text-primary); }
+        tr:hover { background: var(--bg-hover); }
+
+        /* 按钮 */
+        .btn { padding: 5px 10px; cursor: pointer; border-radius: var(--radius-sm); border: none; color: white; font-size: 12px; margin-right: 5px; }
+        .btn-add { background: var(--color-success); padding: 8px 20px; font-size: 14px; }
+        .btn-edit { background: var(--color-info); }
+        .btn-del { background: var(--color-danger); }
+        .btn-poster { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .btn-poster:hover { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+        .btn-poster:disabled { opacity: 0.6; cursor: not-allowed; }
+        .tag { padding: 2px 6px; border-radius: var(--radius-sm); font-size: 12px; }
+        .tag-blue { background: rgba(24, 144, 255, 0.1); color: var(--color-info); border: 1px solid rgba(24, 144, 255, 0.3); }
+        .tag-green { background: rgba(82, 196, 26, 0.1); color: var(--color-success); border: 1px solid rgba(82, 196, 26, 0.3); }
+
+        /* 弹窗 */
+        .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .modal-content { background: var(--bg-secondary); padding: var(--spacing-xl); width: 600px; border-radius: var(--radius-md); max-height: 90vh; overflow-y: auto; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-item { margin-bottom: 15px; }
+        .form-item.full { grid-column: span 2; }
+        .form-item label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .form-item input, .form-item select, .form-item textarea { width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--radius-sm); box-sizing: border-box; }
+
+        /* 请求管理样式 */
+        .request-item {
+            background: var(--bg-elevated);
+            padding: 15px;
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-sm);
+            border-left: 3px solid var(--text-muted);
+        }
+        .request-item.status-PENDING { border-left-color: var(--color-warning); background: rgba(250, 173, 20, 0.1); }
+        .request-item.status-APPROVED { border-left-color: var(--color-success); background: rgba(82, 196, 26, 0.1); }
+        .request-item.status-REJECTED { border-left-color: var(--color-danger); background: rgba(255, 77, 79, 0.1); }
+
+        .request-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .request-title { font-weight: bold; font-size: 15px; color: var(--text-primary); }
+        .request-meta { font-size: 12px; color: var(--text-tertiary); }
+        .request-desc { color: var(--text-secondary); font-size: 13px; margin: 8px 0; }
+        .request-actions { margin-top: var(--spacing-sm); }
+        .reply-options { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; margin-top: var(--spacing-sm); }
+        .reply-btn {
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            cursor: pointer;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .reply-btn:hover { border-color: var(--color-info); color: var(--color-info); }
+        .custom-reply { margin-top: var(--spacing-sm); }
+        .custom-reply textarea {
+            width: 100%;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        /* 统计仪表板 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+        .stat-card {
+            background: linear-gradient(135deg, var(--color-info) 0%, #096dd9 100%);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            color: #ffffff;
+            text-align: center;
+        }
+        .stat-card:nth-child(2) {
+            background: linear-gradient(135deg, var(--color-success) 0%, #389e0d 100%);
+        }
+        .stat-card:nth-child(3) {
+            background: linear-gradient(135deg, var(--color-warning) 0%, #d46b08 100%);
+        }
+        .stat-card:nth-child(4) {
+            background: linear-gradient(135deg, var(--color-danger) 0%, #cf1322 100%);
+        }
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: var(--spacing-xs);
+        }
+        .stat-label {
+            font-size: 14px;
+            opacity: 1;
+            color: #ffffff !important;
+        }
+
+        /* 搜索框 */
+        .search-input {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            width: 200px;
+            outline: none;
+        }
+        .search-input:focus {
+            border-color: var(--color-info);
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--border-color);
+        }
+        .page-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .page-btn:hover:not(:disabled) {
+            border-color: var(--color-info);
+            color: var(--color-info);
+        }
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .page-btn.active {
+            background: var(--color-info);
+            color: white;
+            border-color: var(--color-info);
+        }
+        .page-info {
+            color: var(--text-tertiary);
+            font-size: 13px;
+        }
+
+        /* 批量导入弹窗样式 */
+        .batch-import-content {
+            width: 700px;
+        }
+        .batch-import-textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 13px;
+            resize: vertical;
+        }
+        .import-result {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+        }
+        .import-result h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+            color: var(--text-primary);
+        }
+        .import-stats {
+            display: flex;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-sm);
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+        .stat-item.added .stat-value { color: var(--color-success); }
+        .stat-item.updated .stat-value { color: var(--color-info); }
+        .stat-item.failed .stat-value { color: var(--color-danger); }
+        .import-errors {
+            margin-top: var(--spacing-sm);
+            padding: var(--spacing-sm);
+            background: rgba(255, 77, 79, 0.1);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            color: var(--color-danger);
+        }
+        .import-errors h5 {
+            margin: 0 0 var(--spacing-xs) 0;
+        }
+        .import-errors ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+<div id="app" style="display: flex; width: 100%;">
+
+    <div class="sidebar">
+        <div class="logo">SpringVideo Admin</div>
+        <div class="menu-item" :class="{active: currentTab === 'video'}" @click="switchTab('video')">
+            🎬 影片管理
+        </div>
+        <div class="menu-item" :class="{active: currentTab === 'user'}" @click="switchTab('user')">
+            👥 用户管理
+        </div>
+        <div class="menu-item" :class="{active: currentTab === 'comment'}" @click="switchTab('comment')">
+            💬 评论/互动管理
+        </div>
+        <div class="menu-item" :class="{active: currentTab === 'request'}" @click="switchTab('request')">
+            📝 影片请求
+        </div>
+        <div class="menu-item" :class="{active: currentTab === 'feedback'}" @click="switchTab('feedback')">
+            💬 用户反馈
+        </div>
+        <div class="menu-item" style="margin-top: auto;" @click="logout">
+            🚪 退出登录
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="header">
+            <h2 style="margin: 0; color: var(--text-primary);">
+                {{ currentTab === 'video' ? '影片内容库' : (currentTab === 'user' ? '注册用户列表' : (currentTab === 'comment' ? '评论互动记录' : (currentTab === 'request' ? '影片请求管理' : '用户反馈管理'))) }}
+            </h2>
+            <div style="display: flex; align-items: center;">
+                <span style="margin-right: 15px; color: var(--text-secondary);">管理员: <strong style="color: var(--color-primary);">{{ adminName }}</strong></span>
+                <a href="index.html" class="btn btn-secondary">返回前台</a>
+            </div>
+        </div>
+
+        <!-- 统计仪表板 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.videoCount }}</div>
+                <div class="stat-label">影片总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.userCount }}</div>
+                <div class="stat-label">注册用户</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.commentCount }}</div>
+                <div class="stat-label">评论总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.pendingRequests }}</div>
+                <div class="stat-label">待处理请求</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+                <div class="stat-value">{{ stats.pendingFeedbacks }}</div>
+                <div class="stat-label">待处理反馈</div>
+            </div>
+        </div>
+
+        <div class="content-card">
+
+            <div v-if="currentTab === 'video'">
+                <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                        <input type="text" class="search-input" v-model="searchQuery.video" placeholder="搜索影片标题、类型、年份、地区..." @input="filterVideos" style="flex: 1; max-width: 300px;">
+                        <button v-if="searchQuery.video" class="btn btn-del" @click="searchQuery.video=''; filterVideos();" style="padding: 6px 12px;">清空</button>
+                        <span class="page-info" style="color: #666; font-size: 13px;">找到 {{ filteredVideos.length }} 个结果</span>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-add" style="background: #1890ff;" @click="openBatchImportModal()">📦 批量导入</button>
+                        <button class="btn btn-poster" @click="fetchMissingPosters" :disabled="isFetchingPosters">
+                            {{ isFetchingPosters ? '🔄 获取中...' : '🎨 批量获取缺失封面' }}
+                        </button>
+                        <button class="btn btn-poster" @click="fetchAllPosters" :disabled="isFetchingPosters" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            {{ isFetchingPosters ? '🔄 刷新中...' : '🔄 强制刷新全部封面' }}
+                        </button>
+                        <button class="btn btn-add" @click="openVideoModal()">+ 新增影片</button>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                    <tr>
+                        <th width="50">ID</th>
+                        <th width="60">封面</th>
+                        <th>标题</th>
+                        <th>类型</th>
+                        <th>年份</th>
+                        <th>评分</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="v in paginatedVideoList" :key="v.id">
+                        <td>{{ v.id }}</td>
+                        <td>
+                            <img :src="v.localCoverPath || v.coverUrl || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2230%22 height=%2245%22%3E%3Crect fill=%22%23ddd%22 width=%2230%22 height=%2245%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%228%22%3E暂无%3C/text%3E%3C/svg%3E'"
+                                 :alt="v.title"
+                                 style="width: 30px; height: 45px; object-fit: cover; border-radius: 2px;">
+                        </td>
+                        <td>{{ v.title }}</td>
+                        <td><span :class="v.type==='MOVIE'?'tag tag-blue':'tag tag-green'">{{ v.type==='MOVIE'?'电影':'剧集' }}</span></td>
+                        <td>{{ v.year || '-' }}</td>
+                        <td style="color: var(--color-warning); font-weight: bold;">{{ v.score || '-' }}</td>
+                        <td>
+                            <button class="btn btn-poster" @click="fetchSinglePoster(v)" :disabled="isFetchingPoster === v.id" style="padding: 4px 8px;" title="获取封面">
+                                {{ isFetchingPoster === v.id ? '🔄' : '🎨' }}
+                            </button>
+                            <button class="btn btn-edit" @click="openVideoModal(v)">编辑</button>
+                            <button class="btn btn-del" @click="delVideo(v.id)">删除</button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+
+                <!-- 无结果提示 -->
+                <div v-if="paginatedVideoList.length === 0" style="text-align: center; padding: 40px; color: #999;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📭</div>
+                    <div>{{ searchQuery.video ? '没有找到匹配的影片' : '暂无影片数据' }}</div>
+                </div>
+
+                <!-- 分页控件 -->
+                <div class="pagination" v-if="paginatedVideos.totalPages > 1 && paginatedVideoList.length > 0">
+                    <button class="page-btn" @click="changePage('video', -1)" :disabled="paginatedVideos.currentPage === 1">上一页</button>
+                    <template v-for="page in paginatedVideos.totalPages" :key="page">
+                        <button v-if="page === 1 || page === paginatedVideos.totalPages || (page >= paginatedVideos.currentPage - 1 && page <= paginatedVideos.currentPage + 1)"
+                                class="page-btn"
+                                :class="{active: page === paginatedVideos.currentPage}"
+                                @click="paginatedVideos.currentPage = page">
+                            {{ page }}
+                        </button>
+                    </template>
+                    <button class="page-btn" @click="changePage('video', 1)" :disabled="paginatedVideos.currentPage === paginatedVideos.totalPages">下一页</button>
+                    <span class="page-info">第 {{ paginatedVideos.currentPage }} / {{ paginatedVideos.totalPages }} 页 · 共 {{ filteredVideos.length }} 条</span>
+                    <div style="display: inline-flex; align-items: center; margin-left: 15px;">
+                        <span style="margin-right: 5px; color: #666;">跳转</span>
+                        <input type="number" v-model.number="jumpPage" min="1" :max="paginatedVideos.totalPages"
+                               style="width: 50px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
+                               @keyup.enter="goToPage">
+                        <button class="page-btn" @click="goToPage" style="padding: 4px 12px; margin-left: 5px;">GO</button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentTab === 'user'">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>角色</th>
+                        <th>偏好标签</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="u in userList" :key="u.id">
+                        <td>{{ u.id }}</td>
+                        <td><strong>{{ u.username }}</strong></td>
+                        <td>
+                            <span v-if="u.role === 'admin'" style="background: var(--color-danger); color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">管理员</span>
+                            <span v-else style="background: var(--bg-elevated); color: var(--text-secondary); padding: 2px 6px; border-radius: 4px; font-size: 12px;">普通用户</span>
+                        </td>
+                        <td style="color: var(--text-tertiary); font-size: 12px;">{{ u.preferences || '暂无' }}</td>
+                        <td>
+                            <button v-if="u.username !== 'admin'" class="btn btn-del" @click="delUser(u.id)">注销账号</button>
+                            <span v-else style="color: var(--text-muted); font-size: 12px;">不可操作</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div v-if="currentTab === 'comment'">
+                <table>
+                    <thead>
+                    <tr>
+                        <th width="50">ID</th>
+                        <th width="100">用户</th>
+                        <th width="80">视频ID</th>
+                        <th>评分</th>
+                        <th>评论内容</th>
+                        <th>时间</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="c in commentList" :key="c.id">
+                        <td>{{ c.id }}</td>
+                        <td>{{ c.username || '用户'+c.userId }}</td>
+                        <td><a :href="'detail.html?id='+c.videoId" target="_blank" style="color: var(--color-info);">{{ c.videoId }}</a></td>
+                        <td style="color: var(--color-warning);">{{ c.rating || '-' }}</td>
+                        <td>{{ c.content || '(仅打分，无评论)' }}</td>
+                        <td style="font-size: 12px; color: var(--text-tertiary);">{{ formatDateTime(c.createTime) }}</td>
+                        <td>
+                            <button class="btn btn-del" @click="delComment(c.id)">删除</button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div v-if="commentList.length===0" style="text-align:center; padding: 20px; color:var(--text-tertiary)">暂无评论数据</div>
+            </div>
+
+            <div v-if="currentTab === 'request'">
+                <div style="margin-bottom: 15px;">
+                    <button class="btn" :class="requestFilter === 'all' ? 'btn-add' : ''" @click="filterRequests('all')" style="background: var(--bg-elevated); color: var(--text-primary);">全部</button>
+                    <button class="btn" :class="requestFilter === 'PENDING' ? 'btn-add' : ''" @click="filterRequests('PENDING')" style="background: var(--color-warning);">待处理</button>
+                    <button class="btn" :class="requestFilter === 'APPROVED' ? 'btn-add' : ''" @click="filterRequests('APPROVED')" style="background: var(--color-success);">已采纳</button>
+                    <button class="btn" :class="requestFilter === 'REJECTED' ? 'btn-add' : ''" @click="filterRequests('REJECTED')" style="background: var(--color-danger);">已拒绝</button>
+                </div>
+                <div v-if="requestList.length > 0">
+                    <div class="request-item" v-for="req in requestList" :key="req.id" :class="'status-' + req.status">
+                        <div class="request-header">
+                            <div>
+                                <span class="request-title">{{ req.videoTitle }}</span>
+                                <span class="tag" :class="req.status === 'PENDING' ? 'tag-blue' : (req.status === 'APPROVED' ? 'tag-green' : 'tag')" style="margin-left: 10px;">
+                                    {{ req.status === 'PENDING' ? '待处理' : req.status === 'APPROVED' ? '已采纳' : '已拒绝' }}
+                                </span>
+                            </div>
+                            <span class="request-meta">
+                                {{ req.username }} (ID: {{ req.userId }}) · {{ formatRequestDate(req.createTime) }}
+                            </span>
+                        </div>
+                        <div class="request-desc" v-if="req.description">{{ req.description }}</div>
+                        <div v-if="req.adminReply" style="background: var(--bg-tertiary); padding: 10px; border-radius: 4px; margin-top: 8px;">
+                            <strong style="color: var(--color-success);">已回复：</strong>{{ req.adminReply }}
+                        </div>
+                        <div class="request-actions" v-if="req.status === 'PENDING'">
+                            <div class="reply-options">
+                                <span class="reply-btn" @click="quickReply(req.id, 'APPROVED', '好的，我们会尽快添加这部影片！')">✅ 采纳（添加影片）</span>
+                                <span class="reply-btn" @click="quickReply(req.id, 'REJECTED', '抱歉，由于版权原因暂时无法添加。')">❌ 版权原因拒绝</span>
+                                <span class="reply-btn" @click="quickReply(req.id, 'REJECTED', '已收到您的请求，已加入待办列表。')">📋 加入待办</span>
+                                <span class="reply-btn" @click="quickReply(req.id, 'REJECTED', '影片名称不够明确，请提供更详细信息。')">❓ 信息不明确</span>
+                            </div>
+                            <div class="custom-reply">
+                                <textarea v-model="customReplies[req.id]" placeholder="或输入自定义回复..."></textarea>
+                                <div style="margin-top: 5px;">
+                                    <button class="btn btn-add" @click="customReply(req.id, 'APPROVED')">✅ 采纳</button>
+                                    <button class="btn btn-del" @click="customReply(req.id, 'REJECTED')">❌ 拒绝</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else style="text-align:center; padding: 40px; color:var(--text-tertiary)">
+                    {{ requestFilter === 'all' ? '暂无请求' : '暂无' + (requestFilter === 'PENDING' ? '待处理' : requestFilter === 'APPROVED' ? '已采纳' : '已拒绝') + '的请求' }}
+                </div>
+            </div>
+
+            <div v-if="currentTab === 'feedback'">
+                <div style="margin-bottom: 15px;">
+                    <button class="btn" :class="feedbackFilter === 'all' ? 'btn-add' : ''" @click="filterFeedbacks('all')" style="background: var(--bg-elevated); color: var(--text-primary);">全部</button>
+                    <button class="btn" :class="feedbackFilter === 'PENDING' ? 'btn-add' : ''" @click="filterFeedbacks('PENDING')" style="background: var(--color-warning);">待处理</button>
+                    <button class="btn" :class="feedbackFilter === 'PROCESSED' ? 'btn-add' : ''" @click="filterFeedbacks('PROCESSED')" style="background: var(--color-success);">已处理</button>
+                    <button class="btn" :class="feedbackFilter === 'CLOSED' ? 'btn-add' : ''" @click="filterFeedbacks('CLOSED')" style="background: var(--text-muted);">已关闭</button>
+                </div>
+                <div v-if="feedbackList.length > 0">
+                    <div class="request-item" v-for="fb in feedbackList" :key="fb.id" :class="'status-' + fb.status">
+                        <div class="request-header">
+                            <div>
+                                <span class="request-title">{{ fb.title }}</span>
+                                <span class="tag" :class="fb.category === 'bug' ? 'tag-blue' : (fb.category === 'suggestion' ? 'tag-green' : 'tag')" style="margin-left: 10px;">
+                                    {{ fb.category === 'bug' ? '问题反馈' : fb.category === 'suggestion' ? '功能建议' : '其他' }}
+                                </span>
+                                <span class="tag" :class="fb.status === 'PENDING' ? 'tag-blue' : (fb.status === 'PROCESSED' ? 'tag-green' : 'tag')" style="margin-left: 5px;">
+                                    {{ fb.status === 'PENDING' ? '待处理' : fb.status === 'PROCESSED' ? '已处理' : '已关闭' }}
+                                </span>
+                            </div>
+                            <span class="request-meta">
+                                {{ fb.username }} (ID: {{ fb.userId }}) · {{ formatRequestDate(fb.createTime) }}
+                            </span>
+                        </div>
+                        <div class="request-desc">{{ fb.content }}</div>
+                        <div v-if="fb.adminReply" style="background: var(--bg-tertiary); padding: 10px; border-radius: 4px; margin-top: 8px;">
+                            <strong style="color: var(--color-success);">已回复：</strong>{{ fb.adminReply }}
+                        </div>
+                        <div class="request-actions" v-if="fb.status === 'PENDING'">
+                            <div class="custom-reply">
+                                <textarea v-model="customFeedbackReplies[fb.id]" placeholder="输入回复内容..."></textarea>
+                                <div style="margin-top: 5px;">
+                                    <button class="btn btn-add" @click="replyFeedback(fb.id, 'PROCESSED')">✅ 标记已处理</button>
+                                    <button class="btn btn-del" @click="replyFeedback(fb.id, 'CLOSED')">❌ 关闭反馈</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else style="text-align:center; padding: 40px; color:var(--text-tertiary)">
+                    {{ feedbackFilter === 'all' ? '暂无反馈' : '暂无' + (feedbackFilter === 'PENDING' ? '待处理' : feedbackFilter === 'PROCESSED' ? '已处理' : '已关闭') + '的反馈' }}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="modal-mask" v-if="showVideoModal">
+        <div class="modal-content">
+            <h2 style="margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">{{ videoForm.id ? '编辑影片' : '新增影片' }}</h2>
+            <div class="form-grid">
+                <div class="form-item"><label>标题</label><input v-model="videoForm.title"></div>
+                <div class="form-item"><label>类型</label><select v-model="videoForm.type"><option value="MOVIE">电影</option><option value="SERIES">剧集</option></select></div>
+                <div class="form-item"><label>年份</label><input type="number" v-model="videoForm.year"></div>
+                <div class="form-item"><label>地区</label><input v-model="videoForm.region"></div>
+                <div class="form-item"><label>语言</label><input v-model="videoForm.language"></div>
+                <div class="form-item"><label>评分</label><input type="number" step="0.1" v-model="videoForm.score"></div>
+                <div class="form-item full"><label>分类</label><input v-model="videoForm.category"></div>
+                <div class="form-item full"><label>简介</label><textarea v-model="videoForm.description" rows="3"></textarea></div>
+                <div class="form-item full"><label>封面 URL</label><input v-model="videoForm.coverUrl"></div>
+                <div class="form-grid">
+                    <div class="form-item"><label>标题</label><input v-model="videoForm.title"></div>
+                    <div class="form-item">
+                        <label>类型</label>
+                        <select v-model="videoForm.type">
+                            <option value="MOVIE">电影</option>
+                            <option value="SERIES">剧集</option>
+                        </select>
+                    </div>
+                    <template v-if="videoForm.type === 'MOVIE'">
+                        <div class="form-item">
+                            <label>播放源类型</label>
+                            <select v-model="videoForm.playSourceType">
+                                <option :value="0">本地视频/直链 (DPlayer)</option>
+                                <option :value="1">外部网页链接 (Iframe)</option>
+                            </select>
+                        </div>
+                        <div class="form-item full">
+                            <label>播放地址 / 上传视频</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input v-model="videoForm.playUrl" placeholder="请输入外部链接或直接上传" style="flex: 1;">
+                                <input type="file" @change="uploadVideo($event, null)" v-if="videoForm.playSourceType === 0" accept="video/*" style="width: 220px;">
+                            </div>
+                        </div>
+                    </template>
+
+                    <template v-if="videoForm.type === 'SERIES'">
+                        <div class="form-item full">
+                            <label style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                                剧集列表管理
+                                <button class="btn btn-add" style="padding: 2px 10px; float: right;" @click="addEpisode">+ 添加一集</button>
+                            </label>
+
+                            <div v-for="(ep, index) in videoForm.episodeList" :key="index" style="background: var(--bg-tertiary); padding: 15px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                                    <input v-model="ep.title" placeholder="如: 第1集" style="width: 120px;">
+                                    <select v-model="ep.playSourceType" style="width: 160px;">
+                                        <option :value="0">本地/直链(DPlayer)</option>
+                                        <option :value="1">外部链接(Iframe)</option>
+                                    </select>
+                                    <button class="btn btn-del" @click="removeEpisode(index)">删除此集</button>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <input v-model="ep.playUrl" placeholder="播放地址" style="flex: 1;">
+                                    <input type="file" @change="uploadVideo($event, index)" v-if="ep.playSourceType === 0" accept="video/*" style="width: 200px;">
+                                </div>
+                            </div>
+                            <div v-if="videoForm.episodeList.length === 0" style="color: var(--text-tertiary); text-align: center;">暂无剧集，请点击右上角添加</div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="btn btn-secondary" style="margin-right: 10px;" @click="showVideoModal = false">取消</button>
+                <button class="btn btn-add" @click="submitVideoForm">提交保存</button>
+        </div>
+        </div>
+    </div>
+
+    <!-- 批量导入弹窗 -->
+    <div class="modal-mask" v-if="showBatchImportModal" @click.self="showBatchImportModal = false">
+        <div class="modal-content batch-import-content">
+            <h2 style="margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">📦 批量导入影视数据</h2>
+            <p style="color: var(--text-tertiary); font-size: 13px; margin-bottom: 15px;">
+                请输入影视数据的 JSON 数组格式，系统会自动根据标题去重，已存在的影视将被更新。
+                <span style="color: var(--color-info);">💡 coverUrl 可留空，系统会自动从豆瓣获取海报</span>
+            </p>
+            <textarea v-model="batchImportText" class="batch-import-textarea" placeholder='示例格式：
+[
+  {
+    "title": "肖申克的救赎",
+    "type": "MOVIE",
+    "year": 1994,
+    "region": "美国",
+    "language": "英语",
+    "category": "剧情,犯罪",
+    "score": 9.7,
+    "description": "银行家安迪被冤枉杀害妻子的罪名...",
+    "coverUrl": "",  // 留空自动从豆瓣获取
+    "playSourceType": 0,
+    "playUrl": "https://example.com/video.mp4"
+  },
+  {
+    "title": "权力的游戏",
+    "type": "SERIES",
+    "year": 2011,
+    "region": "美国",
+    "language": "英语",
+    "category": "奇幻,冒险",
+    "score": 9.3,
+    "description": "九大家族纷争争夺铁王座...",
+    "coverUrl": "",  // 留空自动从豆瓣获取
+    "episodes": "[{\"title\":\"第1集\",\"playSourceType\":0,\"playUrl\":\"...\"},{\"title\":\"第2集\",\"playSourceType\":0,\"playUrl\":\"...\"}]"
+  }
+]'></textarea>
+
+            <!-- 导入结果显示 -->
+            <div class="import-result" v-if="importResult">
+                <h4>导入结果</h4>
+                <div class="import-stats">
+                    <div class="stat-item added">
+                        <div class="stat-value">{{ importResult.added }}</div>
+                        <div class="stat-label">新增</div>
+                    </div>
+                    <div class="stat-item updated">
+                        <div class="stat-value">{{ importResult.updated }}</div>
+                        <div class="stat-label">更新</div>
+                    </div>
+                    <div class="stat-item" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="stat-value">{{ importResult.posterFetched || 0 }}</div>
+                        <div class="stat-label">获取海报</div>
+                    </div>
+                    <div class="stat-item failed">
+                        <div class="stat-value">{{ importResult.failed }}</div>
+                        <div class="stat-label">失败</div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 4px; font-size: 13px; color: var(--color-info);">
+                    💡 系统已自动从豆瓣获取了 {{ importResult.posterFetched || 0 }} 张影视海报，封面为空的影视会自动搜索并填充
+                </div>
+                <div class="import-errors" v-if="importResult.errors && importResult.errors.length > 0">
+                    <h5>错误详情：</h5>
+                    <ul>
+                        <li v-for="(error, index) in importResult.errors" :key="index">{{ error }}</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="btn btn-secondary" style="margin-right: 10px;" @click="showBatchImportModal = false; importResult = null; batchImportText = ''">取消</button>
+                <button class="btn btn-add" @click="submitBatchImport">开始导入</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const { createApp } = Vue;
+    createApp({
+        data() {
+            return {
+                adminName: '',
+                currentTab: 'video', // 当前选中的标签: video, user, comment
+
+                // 数据列表
+                videoList: [],
+                userList: [],
+                commentList: [],
+                requestList: [], // 请求列表
+                requestFilter: 'all', // 请求筛选状态
+                customReplies: {}, // 自定义回复内容
+                feedbackList: [], // 反馈列表
+                feedbackFilter: 'all', // 反馈筛选状态
+                customFeedbackReplies: {}, // 自定义反馈回复内容
+
+                // 视频表单相关
+                showVideoModal: false,
+                videoForm: this.getEmptyVideoForm(),
+
+                // 批量导入相关
+                showBatchImportModal: false,
+                batchImportText: '',
+                importResult: null,
+
+                // 海报获取相关
+                isFetchingPosters: false,
+                isFetchingPoster: null, // 当前正在获取海报的视频ID
+
+                // 统计数据
+                stats: {
+                    videoCount: 0,
+                    userCount: 0,
+                    commentCount: 0,
+                    pendingRequests: 0,
+                    pendingFeedbacks: 0
+                },
+
+                // 搜索和分页
+                searchQuery: {
+                    video: '',
+                    user: '',
+                    comment: ''
+                },
+                filteredVideos: [],
+                paginatedVideos: {
+                    currentPage: 1,
+                    pageSize: 10,
+                    totalPages: 1
+                },
+                jumpPage: 1
+            }
+        },
+        computed: {
+            // 获取当前页的视频
+            paginatedVideoList() {
+                const start = (this.paginatedVideos.currentPage - 1) * this.paginatedVideos.pageSize;
+                const end = start + this.paginatedVideos.pageSize;
+                return this.filteredVideos.slice(start, end);
+            }
+        },
+        watch: {
+            // 当前页变化时，同步更新跳转页码
+            'paginatedVideos.currentPage'(newPage) {
+                this.jumpPage = newPage;
+            },
+            // 总页数变化时，确保跳转页码不超出范围
+            'paginatedVideos.totalPages'(newTotalPages) {
+                if (this.jumpPage > newTotalPages) {
+                    this.jumpPage = newTotalPages;
+                }
+            }
+        },
+
+        mounted() {
+            // 注册 Service Worker（图片缓存）
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => {
+                        console.log('[SW] 注册成功:', reg.scope);
+                    })
+                    .catch(err => {
+                        console.log('[SW] 注册失败:', err);
+                    });
+            }
+
+            // 权限校验
+            const userStr = localStorage.getItem('currentUser');
+            if (!userStr) {
+                alert('请先登录');
+                window.location.href = 'login.html';
+                return;
+            }
+            const user = JSON.parse(userStr);
+            if (user.role !== 'admin') {
+                alert('无权访问后台');
+                window.location.href = 'index.html';
+                return;
+            }
+            this.adminName = user.username;
+
+            // 加载统计数据
+            this.loadStats();
+
+            // 默认加载视频列表
+            this.switchTab('video');
+        },
+        methods: {
+            uploadVideo(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const formData = new FormData();
+                formData.append("file", file);
+
+                // 简单的上传提示
+                event.target.nextSibling ? '' : event.target.insertAdjacentHTML('afterend', '<span id="up-tip" style="color:red;font-size:12px;">上传中...</span>');
+
+                axios.post('/api/file/upload', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                }).then(res => {
+                    const tip = document.getElementById('up-tip');
+                    if(tip) tip.remove();
+
+                    if (res.data.code === 200) {
+                        this.videoForm.playUrl = res.data.data; // 将返回的路径填入输入框
+                        alert('视频上传成功！');
+                    } else {
+                        alert('上传失败: ' + res.data.msg);
+                    }
+                });
+            },
+            // 切换标签页并加载对应数据
+            switchTab(tab) {
+                this.currentTab = tab;
+                if(tab === 'video') this.fetchVideos();
+                if(tab === 'user') this.fetchUsers();
+                if(tab === 'comment') this.fetchComments();
+                if(tab === 'request') this.fetchRequests();
+                if(tab === 'feedback') this.fetchFeedbacks();
+            },
+            // 加载统计数据
+            loadStats() {
+                // 并行加载所有数据
+                axios.all([
+                    axios.get('/admin/video/list'),
+                    axios.get('/admin/user/list'),
+                    axios.get('/admin/comment/list'),
+                    axios.get('/admin/request/list'),
+                    axios.get('/admin/feedback/list')
+                ]).then(axios.spread((videoRes, userRes, commentRes, requestRes, feedbackRes) => {
+                    if(videoRes.data.code === 200) this.stats.videoCount = videoRes.data.data.length;
+                    if(userRes.data.code === 200) this.stats.userCount = userRes.data.data.length;
+                    if(commentRes.data.code === 200) this.stats.commentCount = commentRes.data.data.length;
+                    if(requestRes.data.code === 200) {
+                        this.stats.pendingRequests = (requestRes.data.data || []).filter(r => r.status === 'PENDING').length;
+                    }
+                    if(feedbackRes.data.code === 200) {
+                        this.stats.pendingFeedbacks = (feedbackRes.data.data || []).filter(f => f.status === 'PENDING').length;
+                    }
+                }));
+            },
+            // 搜索过滤视频
+            filterVideos() {
+                const query = this.searchQuery.video.toLowerCase().trim();
+                if (!query) {
+                    this.filteredVideos = [...this.videoList];
+                } else {
+                    this.filteredVideos = this.videoList.filter(v => {
+                        const title = (v.title || '').toLowerCase();
+                        const category = (v.category || '').toLowerCase();
+                        const region = (v.region || '').toLowerCase();
+                        const type = (v.type || '').toLowerCase();
+                        const year = String(v.year || '').toLowerCase();
+                        return title.includes(query) ||
+                               category.includes(query) ||
+                               region.includes(query) ||
+                               type.includes(query) ||
+                               year.includes(query);
+                    });
+                }
+                this.paginatedVideos.currentPage = 1;
+                this.updatePagination();
+            },
+            // 更新分页
+            updatePagination() {
+                const total = this.filteredVideos.length;
+                this.paginatedVideos.totalPages = Math.ceil(total / this.paginatedVideos.pageSize) || 1;
+            },
+            // 切换页面
+            changePage(type, delta) {
+                if (type === 'video') {
+                    const newPage = this.paginatedVideos.currentPage + delta;
+                    if (newPage >= 1 && newPage <= this.paginatedVideos.totalPages) {
+                        this.paginatedVideos.currentPage = newPage;
+                    }
+                }
+            },
+            // 跳转到指定页面
+            goToPage() {
+                const page = parseInt(this.jumpPage);
+                if (page >= 1 && page <= this.paginatedVideos.totalPages) {
+                    this.paginatedVideos.currentPage = page;
+                }
+            },
+            logout() {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+            },
+
+            // --- 1. 视频管理逻辑 ---
+            fetchVideos() {
+                axios.get('/admin/video/list').then(res => {
+                    this.videoList = res.data.data;
+                    this.filteredVideos = [...this.videoList];
+                    this.updatePagination();
+                });
+            },
+            delVideo(id) {
+                if(confirm('确定删除?')) axios.delete('/admin/video/delete/'+id).then(res => this.fetchVideos());
+            },
+            // 2. 打开弹窗时，将 JSON 字符串解析为数组
+            openVideoModal(video) {
+                this.videoForm = video ? JSON.parse(JSON.stringify(video)) : this.getEmptyVideoForm();
+                if(!this.videoForm.episodeList) this.videoForm.episodeList = [];
+                // 如果是剧集且有剧集数据，解析 JSON
+                if(video && video.type === 'SERIES' && video.episodes) {
+                    try { this.videoForm.episodeList = JSON.parse(video.episodes); } catch(e) {}
+                }
+                this.showVideoModal = true;
+            },
+            // 3. 提交表单时，将数组转回 JSON 字符串
+            submitVideoForm() {
+                if(this.videoForm.type === 'SERIES') {
+                    this.videoForm.episodes = JSON.stringify(this.videoForm.episodeList);
+                } else {
+                    this.videoForm.episodes = ''; // 电影清空剧集
+                }
+                const url = this.videoForm.id ? '/admin/video/update' : '/admin/video/add';
+                const method = this.videoForm.id ? axios.put : axios.post;
+                method(url, this.videoForm).then(res => {
+                    if(res.data.code === 200) { this.showVideoModal = false; this.fetchVideos(); }
+                    else { alert(res.data.msg); }
+                });
+            },
+            // --- 新增的剧集管理与通用上传方法 ---
+            addEpisode() {
+                this.videoForm.episodeList.push({ title: '第'+(this.videoForm.episodeList.length+1)+'集', playSourceType: 0, playUrl: '' });
+            },
+            removeEpisode(index) {
+                this.videoForm.episodeList.splice(index, 1);
+            },
+            // 兼容单集和多集的上传方法
+            uploadVideo(event, index) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const formData = new FormData();
+                formData.append("file", file);
+
+                event.target.insertAdjacentHTML('afterend', '<span class="up-tip" style="color:red;font-size:12px;margin-left:5px;">上传中...</span>');
+
+                axios.post('/api/file/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(res => {
+                    document.querySelectorAll('.up-tip').forEach(el => el.remove()); // 移除提示
+                    if (res.data.code === 200) {
+                        if (index !== null && index !== undefined) {
+                            this.videoForm.episodeList[index].playUrl = res.data.data; // 更新对应剧集的URL
+                        } else {
+                            this.videoForm.playUrl = res.data.data; // 更新电影的URL
+                        }
+                        alert('上传成功！');
+                    } else { alert('上传失败: ' + res.data.msg); }
+                });
+            },
+
+            // 1. 获取空表单时，增加 episodeList
+            getEmptyVideoForm() {
+                return { id:null, title:'', type:'MOVIE', year:2023, region:'', language:'', category:'', description:'', coverUrl:'', score:8.0, playSourceType: 0, playUrl: '', episodeList: [] };
+            },
+
+
+            // --- 2. 用户管理逻辑 ---
+            fetchUsers() {
+                axios.get('/admin/user/list').then(res => { this.userList = res.data.data; });
+            },
+            delUser(id) {
+                if(confirm('确定注销该用户? 操作不可恢复')) {
+                    axios.delete('/admin/user/delete/' + id).then(res => {
+                        if(res.data.code===200) this.fetchUsers();
+                        else alert(res.data.msg);
+                    });
+                }
+            },
+
+            // --- 3. 评论管理逻辑 ---
+            fetchComments() {
+                axios.get('/admin/comment/list').then(res => { this.commentList = res.data.data; });
+            },
+            delComment(id) {
+                if(confirm('确定删除这条评论?')) {
+                    axios.delete('/admin/comment/delete/' + id).then(res => {
+                        if(res.data.code===200) this.fetchComments();
+                    });
+                }
+            },
+
+            // --- 4. 影片请求管理逻辑 ---
+            fetchRequests() {
+                axios.get('/admin/request/list').then(res => {
+                    this.requestList = res.data.data || [];
+                    this.filterRequests(this.requestFilter);
+                });
+            },
+            filterRequests(status) {
+                this.requestFilter = status;
+                axios.get('/admin/request/list').then(res => {
+                    let list = res.data.data || [];
+                    if (status !== 'all') {
+                        list = list.filter(r => r.status === status);
+                    }
+                    this.requestList = list;
+                });
+            },
+            // 快捷回复
+            quickReply(requestId, status, reply) {
+                if(confirm('确认' + (status === 'APPROVED' ? '采纳' : '拒绝') + '此请求？')) {
+                    axios.post('/admin/request/reply', {
+                        requestId: requestId,
+                        status: status,
+                        reply: reply
+                    }).then(res => {
+                        if(res.data.code === 200) {
+                            alert('回复成功！');
+                            this.fetchRequests();
+                        } else {
+                            alert(res.data.msg);
+                        }
+                    });
+                }
+            },
+            // 自定义回复
+            customReply(requestId, status) {
+                const reply = this.customReplies[requestId];
+                if(!reply || reply.trim() === '') {
+                    alert('请输入回复内容');
+                    return;
+                }
+                if(confirm('确认' + (status === 'APPROVED' ? '采纳' : '拒绝') + '此请求？')) {
+                    axios.post('/admin/request/reply', {
+                        requestId: requestId,
+                        status: status,
+                        reply: reply.trim()
+                    }).then(res => {
+                        if(res.data.code === 200) {
+                            alert('回复成功！');
+                            this.customReplies[requestId] = '';
+                            this.fetchRequests();
+                        } else {
+                            alert(res.data.msg);
+                        }
+                    });
+                }
+            },
+            // 格式化请求日期
+            formatRequestDate(dateStr) {
+                if(!dateStr) return '';
+                const date = new Date(dateStr);
+                return date.toLocaleString('zh-CN');
+            },
+            // 格式化日期时间
+            formatDateTime(dateStr) {
+                return this.formatRequestDate(dateStr);
+            },
+
+            // --- 5. 用户反馈管理逻辑 ---
+            fetchFeedbacks() {
+                axios.get('/admin/feedback/list').then(res => {
+                    this.feedbackList = res.data.data || [];
+                    this.filterFeedbacks(this.feedbackFilter);
+                });
+            },
+            filterFeedbacks(status) {
+                this.feedbackFilter = status;
+                axios.get('/admin/feedback/filter', { params: { status: status } }).then(res => {
+                    this.feedbackList = res.data.data || [];
+                });
+            },
+            replyFeedback(feedbackId, status) {
+                const reply = this.customFeedbackReplies[feedbackId];
+                if(!reply || reply.trim() === '') {
+                    alert('请输入回复内容');
+                    return;
+                }
+                if(confirm('确认' + (status === 'PROCESSED' ? '标记已处理' : '关闭') + '此反馈？')) {
+                    axios.post('/admin/feedback/reply', {
+                        feedbackId: feedbackId,
+                        status: status,
+                        reply: reply.trim()
+                    }).then(res => {
+                        if(res.data.code === 200) {
+                            alert('操作成功！');
+                            this.customFeedbackReplies[feedbackId] = '';
+                            this.fetchFeedbacks();
+                        } else {
+                            alert(res.data.msg);
+                        }
+                    });
+                }
+            },
+
+            // --- 6. 批量导入逻辑 ---
+            openBatchImportModal() {
+                this.showBatchImportModal = true;
+                this.batchImportText = '';
+                this.importResult = null;
+            },
+            submitBatchImport() {
+                if (!this.batchImportText || this.batchImportText.trim() === '') {
+                    alert('请输入影视数据');
+                    return;
+                }
+
+                try {
+                    const videos = JSON.parse(this.batchImportText.trim());
+                    if (!Array.isArray(videos)) {
+                        alert('数据格式错误：必须是 JSON 数组格式，例如 [{...}, {...}]');
+                        return;
+                    }
+
+                    if (videos.length === 0) {
+                        alert('数据为空，请至少输入一条影视数据');
+                        return;
+                    }
+
+                    axios.post('/admin/video/batch-import', videos).then(res => {
+                        if (res.data.code === 200) {
+                            this.importResult = res.data.data;
+                            this.fetchVideos();
+                            // 如果全部成功，关闭弹窗
+                            if (this.importResult.failed === 0) {
+                                alert('导入成功！新增 ' + this.importResult.added + ' 条，更新 ' + this.importResult.updated + ' 条');
+                                this.showBatchImportModal = false;
+                                this.batchImportText = '';
+                                this.importResult = null;
+                            }
+                        } else {
+                            alert('导入失败: ' + res.data.msg);
+                        }
+                    }).catch(err => {
+                        alert('导入失败：' + (err.response?.data?.msg || err.message || '网络错误'));
+                        console.error('批量导入错误:', err);
+                    });
+                } catch (e) {
+                    alert('JSON 格式错误：' + e.message + '\n\n请确保数据格式正确，例如：[{"title":"..."}, {"title":"..."}]');
+                }
+            },
+
+            // --- 7. 海报获取逻辑 ---
+            // 获取单个视频的海报
+            fetchSinglePoster(video) {
+                this.isFetchingPoster = video.id;
+                axios.post('/admin/video/fetch-poster/' + video.id).then(res => {
+                    if (res.data.code === 200) {
+                        const result = res.data.data;
+                        if (result.success) {
+                            alert('获取成功！\n旧封面: ' + result.oldCoverUrl + '\n新封面: ' + result.coverUrl);
+                            this.fetchVideos();
+                        } else {
+                            alert('获取失败：' + result.message);
+                        }
+                    }
+                }).catch(err => {
+                    alert('获取失败：' + (err.response?.data?.msg || err.message || '网络错误'));
+                }).finally(() => {
+                    this.isFetchingPoster = null;
+                });
+            },
+
+            // 批量获取缺失海报
+            fetchMissingPosters() {
+                if (!confirm('确定要批量获取所有缺失封面的海报吗？这可能需要一些时间...')) return;
+
+                this.isFetchingPosters = true;
+                axios.post('/admin/video/fetch-missing-posters').then(res => {
+                    if (res.data.code === 200) {
+                        const result = res.data.data;
+                        alert('批量获取完成！\n' +
+                              '视频总数: ' + result.total + '\n' +
+                              '已跳过: ' + result.skipped + '\n' +
+                              '成功获取: ' + result.successCount + '\n' +
+                              '获取失败: ' + result.failCount +
+                              (result.failedTitles.length > 0 ? '\n\n失败列表:\n' + result.failedTitles.slice(0, 10).join('\n') + (result.failedTitles.length > 10 ? '\n...' : '') : ''));
+                        this.fetchVideos();
+                    }
+                }).catch(err => {
+                    alert('获取失败：' + (err.response?.data?.msg || err.message || '网络错误'));
+                }).finally(() => {
+                    this.isFetchingPosters = false;
+                });
+            },
+
+            // 强制刷新所有封面
+            fetchAllPosters() {
+                if (!confirm('确定要强制刷新所有视频的封面吗？这将覆盖现有封面，可能需要较长时间...')) return;
+
+                this.isFetchingPosters = true;
+                axios.post('/admin/video/fetch-all-posters').then(res => {
+                    if (res.data.code === 200) {
+                        const result = res.data.data;
+                        alert('批量刷新完成！\n' +
+                              '视频总数: ' + result.total + '\n' +
+                              '成功: ' + result.successCount + '\n' +
+                              '失败: ' + result.failCount +
+                              (result.failedTitles.length > 0 ? '\n\n失败列表:\n' + result.failedTitles.slice(0, 5).join('\n') : ''));
+                        this.fetchVideos();
+                    }
+                }).catch(err => {
+                    alert('获取失败：' + (err.response?.data?.msg || err.message || '网络错误'));
+                }).finally(() => {
+                    this.isFetchingPosters = false;
+                });
+            }
+        }
+    }).mount('#app');
+
+</script>
+</body>
+</html>

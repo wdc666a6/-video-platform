@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>视频详情 - SpringVideo</title>
+    <link rel="stylesheet" href="css/common.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/flv.js/dist/flv.min.js"></script>
+    <script src="https://unpkg.com/hls.js/dist/hls.min.js"></script>
+    <script src="https://unpkg.com/dplayer/dist/DPlayer.min.js"></script>
+    <style>
+        .back-btn { color: var(--color-info); text-decoration: none; font-size: 16px; display: inline-block; margin-bottom: var(--spacing-lg); }
+
+        .main-content { display: flex; gap: 40px; }
+        .poster { width: 300px; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
+        .info { flex: 1; }
+        h1 { margin-top: 0; color: var(--color-info); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;}
+        .tag { background: var(--bg-elevated); padding: 4px 10px; border-radius: var(--radius-sm); font-size: 12px; margin-right: var(--spacing-sm); color: var(--text-tertiary); }
+        .desc { line-height: 1.6; color: var(--text-secondary); margin: var(--spacing-lg) 0; }
+
+        /* 交互按钮区域 */
+        .btn-watch {
+            background: var(--bg-elevated); border: 1px solid var(--border-light); color: var(--text-secondary); padding: 8px 15px;
+            border-radius: var(--radius-full); cursor: pointer; font-size: 14px; transition: all 0.3s;
+        }
+        .btn-watch.active { background: var(--color-info); color: white; border-color: var(--color-info); }
+        .btn-watch:hover { border-color: var(--color-info); }
+
+        .action-box { background: var(--bg-secondary); padding: var(--spacing-lg); border-radius: var(--radius-md); margin-top: var(--spacing-xl); }
+        .form-group { margin-bottom: var(--spacing-md); }
+        input, textarea { width: 100%; padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--radius-sm); box-sizing: border-box;}
+        button.submit-btn { background: var(--color-info); border: none; color: white; padding: 10px 20px; cursor: pointer; border-radius: var(--radius-sm); font-weight: bold;}
+
+        .comment-list { margin-top: var(--spacing-xl); }
+        .points-tip {
+            background: linear-gradient(135deg, var(--color-primary) 0%, #ff5722 100%);
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        /* 播放器样式 */
+        .player-section {
+            background: #000;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        #mini-dplayer {
+            width: 100%;
+            height: 500px;
+        }
+
+        .player-title {
+            color: var(--text-primary);
+            font-size: 16px;
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* 无播放源提示 */
+        .no-source-tip {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--bg-elevated);
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-lg);
+        }
+        .no-source-tip h3 {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        /* 集数选择区域 */
+        .episodes-section {
+            background: var(--bg-elevated);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-lg);
+        }
+
+        .episodes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .episodes-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .sort-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .sort-btn:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        .ep-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .ep-btn {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            font-size: 14px;
+            transition: all 0.2s;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .ep-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--color-primary);
+        }
+
+        .ep-btn.playing {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+            font-weight: bold;
+        }
+
+        .ep-btn.watched {
+            border-color: var(--color-success);
+        }
+
+        /* 电影播放按钮 */
+        .movie-play-section {
+            background: var(--bg-elevated);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-lg);
+            text-align: center;
+        }
+
+        .movie-play-btn {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .movie-play-btn:hover {
+            background: #ff9800;
+            transform: scale(1.05);
+        }
+
+        /* 反馈按钮 */
+        .feedback-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+            z-index: 100;
+            transition: all 0.3s;
+        }
+
+        .feedback-btn:hover {
+            background: #ff9800;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 152, 0, 0.5);
+        }
+
+        /* 反馈弹窗 */
+        .feedback-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .feedback-content {
+            background: var(--bg-secondary);
+            padding: var(--spacing-xl);
+            width: 500px;
+            border-radius: var(--radius-md);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .feedback-content h3 {
+            margin: 0 0 var(--spacing-md) 0;
+            color: var(--text-primary);
+        }
+
+        .feedback-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .feedback-form input,
+        .feedback-form select,
+        .feedback-form textarea {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            box-sizing: border-box;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .feedback-form textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .feedback-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--spacing-sm);
+        }
+
+        .btn-cancel {
+            background: var(--text-muted);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+
+        .btn-submit {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-submit:hover {
+            background: #ff9800;
+        }
+
+        /* 我的反馈列表 */
+        .my-feedback-list {
+            margin-top: var(--spacing-lg);
+        }
+
+        .my-feedback-item {
+            background: var(--bg-elevated);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-sm);
+            border-left: 3px solid var(--color-primary);
+        }
+
+        .feedback-item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .feedback-item-title {
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .feedback-item-status {
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+        }
+
+        .status-PENDING {
+            background: var(--color-warning);
+            color: white;
+        }
+
+        .status-PROCESSED {
+            background: var(--color-success);
+            color: white;
+        }
+
+        .status-CLOSED {
+            background: var(--text-muted);
+            color: white;
+        }
+
+        .feedback-item-content {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .feedback-item-reply {
+            background: var(--bg-tertiary);
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            margin-top: 8px;
+            font-size: 13px;
+        }
+
+        .feedback-item-reply strong {
+            color: var(--color-success);
+        }
+    </style>
+    <style>
+        .comment-item { border-bottom: 1px solid var(--border-color); padding: 15px 0; position: relative; }
+        .user-name { color: var(--text-tertiary); font-size: 12px; margin-bottom: 5px;}
+        .c-content { font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+        .comment-actions {
+            position: absolute; right: 0; top: 15px;
+        }
+        .action-link {
+            color: var(--color-info); font-size: 12px; cursor: pointer; text-decoration: underline; margin-left: 10px;
+        }
+        .action-link.delete { color: var(--color-danger); }
+        .action-link:hover { opacity: 0.8; }
+
+        /* 我的评论区 */
+        .my-comments {
+            background: var(--bg-tertiary);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-lg);
+        }
+        .my-comments h4 { margin-top: 0; color: var(--color-info); }
+        .my-comment-item {
+            background: var(--bg-elevated);
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 10px;
+            border-left: 3px solid var(--color-info);
+        }
+        .edit-box { margin-top: 10px; }
+        .edit-box textarea {
+            width: 100%;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            min-height: 60px;
+        }
+        .edit-actions { margin-top: 5px; text-align: right; }
+        .btn-small {
+            padding: 5px 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            border: none;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+        .btn-save { background: var(--color-success); color: white; }
+        .btn-cancel { background: var(--text-muted); color: white; }
+
+        /* 星级评分组件 */
+        .star-rating {
+            display: flex;
+            gap: 5px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .star {
+            color: var(--border-light);
+            transition: color 0.2s, transform 0.1s;
+        }
+        .star:hover {
+            transform: scale(1.1);
+        }
+        .star.filled {
+            color: #ffd700;
+        }
+
+        /* 可折叠评论区 */
+        .collapsible-comments {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+        .comments-header {
+            background: var(--bg-elevated);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .comments-header:hover {
+            background: var(--bg-hover);
+        }
+        .comments-toggle {
+            transition: transform 0.3s;
+        }
+        .comments-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+        .comments-body {
+            transition: max-height 0.3s ease-out;
+            overflow: hidden;
+        }
+        .comments-body.collapsed {
+            max-height: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="navbar">
+        <a class="logo" href="index.html">SpringVideo</a>
+        <div class="nav-links">
+            <a class="nav-link" href="index.html">首页</a>
+            <a v-if="currentUser" class="nav-link" href="profile.html">个人中心</a>
+        </div>
+        <div class="right-panel">
+            <div class="user-panel" style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span v-if="currentUser" style="color: var(--text-secondary)">Hi, <a href="profile.html" style="color: var(--color-primary); text-decoration: none;">{{ currentUser.username }}</a></span>
+                <a v-else href="login.html" class="btn btn-primary">登录</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <a href="index.html" class="back-btn">← 返回首页</a>
+
+    <!-- 播放器区域 -->
+    <div class="player-section" v-show="playerInitialized">
+        <div class="player-title">{{ currentPlayTitle }}</div>
+        <div id="mini-dplayer"></div>
+    </div>
+
+    <div v-if="video" class="main-content">
+        <img :src="video.localCoverPath || video.coverUrl" class="poster" @error="imgError">
+        <div class="info">
+            <h1>
+    <span>
+        {{ video.title }} <span style="font-size: 14px; color: var(--text-tertiary)">({{ video.type === 'SERIES' ? '剧集' : '电影' }})</span>
+    </span>
+                <button class="btn-watch" :class="{active: isCollected}" @click="toggleCollect">
+                    {{ isCollected ? '⭐ 已收藏' : '☆ 收藏' }}
+                </button>
+            </h1>
+            <div>
+                <span class="tag" v-for="t in video.category.split(',')" :key="t">{{ t }}</span>
+            </div>
+            <p class="desc">{{ video.description }}</p>
+            <h2 style="color: var(--color-primary)">{{ video.score }} 分</h2>
+            <p>年份: {{ video.year }} | 地区: {{ video.region }}</p>
+        </div>
+    </div>
+
+    <!-- 集数选择区域 - 只显示有集数的剧集，加载完成后 -->
+    <div class="episodes-section" v-if="!loading && video && video.type === 'SERIES' && hasValidEpisodes">
+        <div class="episodes-header">
+            <h3>选集 (共 {{ sortedEpisodes.length }} 集)</h3>
+            <button class="sort-btn" @click="toggleSort">
+                {{ sortAsc ? '↓ 从小到大' : '↑ 从大到小' }}
+            </button>
+        </div>
+        <div class="ep-list">
+            <div v-for="(ep, index) in sortedEpisodes" :key="index"
+                 class="ep-btn"
+                 :class="{playing: currentEpIndex === ep.originalIndex, watched: isWatched(ep.originalIndex)}"
+                 @click="playEpisode(ep.originalIndex)">
+                {{ ep.title }}
+                <span v-if="lastWatchProgress && lastWatchProgress.episodeIndex === ep.originalIndex && video.type === 'SERIES'"
+                      style="margin-left: 5px; font-size: 11px; color: var(--color-primary);">
+                    (继续观看)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 电影播放按钮 - 只显示有播放源的电影，加载完成后 -->
+    <div class="movie-play-section" v-if="!loading && video && video.type === 'MOVIE' && video.playUrl">
+        <button class="movie-play-btn" @click="playMovie">
+            {{ lastWatchProgress && lastWatchProgress.currentTime ? '▶ 继续播放' : '▶ 立即播放' }}
+        </button>
+        <p v-if="lastWatchProgress && lastWatchProgress.currentTime" style="margin-top: 10px; color: var(--text-tertiary); font-size: 13px;">
+            上次观看到 {{ formatTime(lastWatchProgress.currentTime) }}
+        </p>
+    </div>
+
+    <!-- 无播放源提示 -->
+    <div class="no-source-tip" v-if="!loading && video && !hasPlaySource">
+        <div style="font-size: 48px; margin-bottom: 15px;">🚫</div>
+        <h3>暂无播放源</h3>
+        <p style="color: var(--text-tertiary); margin-top: 10px;">该影片暂未添加播放源，请稍后再来或前往「个人中心」请求添加~</p>
+    </div>
+
+    <div class="action-box">
+        <h3>发表评论</h3>
+        <div class="points-tip">💰 发表评论可获得积分！每部影片最多可获得2积分，积分可用于请求添加新影片~</div>
+        <div class="form-group">
+            <label>评分:</label>
+            <div class="star-rating">
+                <span v-for="star in 10" :key="star"
+                      class="star"
+                      :class="{filled: star <= myRating}"
+                      @click="myRating = star"
+                      @mouseover="hoverRating = star"
+                      @mouseleave="hoverRating = null">
+                    ⭐
+                </span>
+                <span style="margin-left: var(--spacing-sm); color: var(--color-primary); font-size: 18px; font-weight: bold;">
+                    {{ myRating }} 分
+                </span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>评价内容:</label>
+            <textarea rows="3" v-model="myComment" placeholder="说说你的看法..."></textarea>
+        </div>
+        <button class="submit-btn" @click="submitComment">发布评论</button>
+    </div>
+
+    <div class="collapsible-comments">
+        <div class="comments-header" @click="commentsCollapsed = !commentsCollapsed">
+            <h3>用户评论 ({{ comments.length }})</h3>
+            <span class="comments-toggle" :class="{collapsed: commentsCollapsed}">▼</span>
+        </div>
+        <div class="comments-body" :class="{collapsed: commentsCollapsed}">
+        <div class="comment-item" v-for="c in comments" :key="c.id">
+            <div class="user-name">
+                {{ c.username || '用户' + c.userId }} | {{ formatDateTime(c.createTime) }} | 评分: <span style="color: var(--color-primary)">{{ c.rating || '-' }}</span>
+            </div>
+            <div class="c-content">{{ c.content }}</div>
+        </div>
+        <div v-if="comments.length === 0" class="empty-state">
+            <div class="empty-icon">💬</div>
+            <div class="empty-title">暂无评论</div>
+            <div class="empty-desc">快来发表第一条评论吧~</div>
+        </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div v-if="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">加载中...</div>
+    </div>
+
+    <!-- Error message -->
+    <div v-if="error" class="empty-state" style="margin: var(--spacing-xl) 0;">
+        <div class="empty-icon">❌</div>
+        <div class="empty-title">加载失败</div>
+        <div class="empty-desc">{{ error }}</div>
+        <button class="btn btn-primary" @click="loadDetail" style="margin-top: var(--spacing-md);">重新加载</button>
+    </div>
+
+    <!-- 反馈按钮 -->
+    <button class="feedback-btn" @click="showFeedbackModal = true" v-if="currentUser">
+        💬 用户反馈
+    </button>
+
+    <!-- 反馈弹窗 -->
+    <div class="feedback-modal" v-if="showFeedbackModal" @click.self="showFeedbackModal = false">
+        <div class="feedback-content">
+            <h3>💬 用户反馈</h3>
+            <div class="feedback-form">
+                <label>反馈标题 *</label>
+                <input type="text" v-model="feedbackForm.title" placeholder="请简要描述问题或建议" maxlength="100">
+
+                <label>反馈类型</label>
+                <select v-model="feedbackForm.category">
+                    <option value="bug">🐛 问题反馈</option>
+                    <option value="suggestion">💡 功能建议</option>
+                    <option value="other">📝 其他</option>
+                </select>
+
+                <label>详细描述 *</label>
+                <textarea v-model="feedbackForm.content" placeholder="请详细描述您遇到的问题或建议..." rows="5" maxlength="1500"></textarea>
+
+                <div class="feedback-actions">
+                    <button class="btn-cancel" @click="showFeedbackModal = false">取消</button>
+                    <button class="btn-submit" @click="submitFeedback">提交反馈</button>
+                </div>
+            </div>
+
+            <!-- 我的反馈列表 -->
+            <div class="my-feedback-list" v-if="myFeedbacks.length > 0">
+                <h4 style="margin-top: 20px; color: var(--text-primary);">我的反馈记录</h4>
+                <div class="my-feedback-item" v-for="fb in myFeedbacks" :key="fb.id">
+                    <div class="feedback-item-header">
+                        <span class="feedback-item-title">{{ fb.title }}</span>
+                        <span class="feedback-item-status" :class="'status-' + fb.status">
+                            {{ fb.status === 'PENDING' ? '待处理' : fb.status === 'PROCESSED' ? '已处理' : '已关闭' }}
+                        </span>
+                    </div>
+                    <div class="feedback-item-content">{{ fb.content }}</div>
+                    <div class="feedback-item-reply" v-if="fb.adminReply">
+                        <strong>管理员回复：</strong>{{ fb.adminReply }}
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 5px;">
+                        {{ formatDateTime(fb.createTime) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                videoId: null,
+                video: null,
+                comments: [],
+                myComments: [],
+                myRating: 8,
+                myComment: '',
+                currentUser: null,
+                isCollected: false,
+                editingCommentId: null,
+                editContent: '',
+                loading: false,
+                error: null,
+                commentsCollapsed: false,
+                hoverRating: null,
+
+                // 播放器相关
+                episodes: [],
+                currentEpIndex: 0,
+                currentPlayUrl: '',
+                currentPlayType: 0,
+                currentPlayTitle: '',
+                dp: null,
+                sortAsc: true,
+                watchedEpisodes: [],
+                progressSaveInterval: null,
+                playerInitialized: false,
+                lastWatchProgress: null,  // 存储上次观看进度
+
+                // 反馈相关
+                showFeedbackModal: false,
+                feedbackForm: {
+                    title: '',
+                    content: '',
+                    category: 'bug'
+                },
+                myFeedbacks: []
+            }
+        },
+        computed: {
+            sortedEpisodes() {
+                if (!this.episodes || !Array.isArray(this.episodes) || this.episodes.length === 0) return [];
+                // 过滤出有播放URL的集数，并添加原始索引
+                const validEpisodes = this.episodes
+                    .map((ep, index) => ({ ...ep, originalIndex: index }))
+                    .filter(ep => ep && ep.playUrl && ep.playUrl.trim() !== '');
+                return this.sortAsc ? validEpisodes : validEpisodes.reverse();
+            },
+            // 检查是否有有效的集数（有播放URL的集数）
+            hasValidEpisodes() {
+                if (!this.episodes || !Array.isArray(this.episodes)) return false;
+                return this.episodes.some(ep => ep && ep.playUrl && ep.playUrl.trim() !== '');
+            },
+            // 检查是否有播放源
+            hasPlaySource() {
+                // 还在加载中时返回true，避免显示"暂无播放源"
+                if (this.loading) return true;
+                if (!this.video) return false;
+                if (this.video.type === 'MOVIE') {
+                    return !!(this.video.playUrl && this.video.playUrl.trim() !== '');
+                } else {
+                    return this.hasValidEpisodes;
+                }
+            }
+        },
+        mounted() {
+            // 注册 Service Worker（图片缓存）
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => {
+                        console.log('[SW] 注册成功:', reg.scope);
+                    })
+                    .catch(err => {
+                        console.log('[SW] 注册失败:', err);
+                    });
+            }
+
+            const userStr = localStorage.getItem('currentUser');
+            if (userStr) {
+                this.currentUser = JSON.parse(userStr);
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            this.videoId = urlParams.get('id');
+
+            if(this.videoId) {
+                this.loadDetail();
+                this.loadComments();
+                if(this.currentUser) {
+                    this.loadMyComments();
+                }
+                this.checkStatus();
+                this.loadMyFeedbacks();
+            } else {
+                alert('参数错误');
+            }
+
+            // 页面卸载时保存进度
+            window.addEventListener('beforeunload', this.saveProgress);
+        },
+        beforeUnmount() {
+            if (this.dp) {
+                this.dp.destroy();
+                this.dp = null;
+            }
+            if (this.progressSaveInterval) {
+                clearInterval(this.progressSaveInterval);
+            }
+            this.saveProgress();
+            window.removeEventListener('beforeunload', this.saveProgress);
+        },
+        methods: {
+            loadDetail() {
+                this.loading = true;
+                this.error = null;
+
+                // 重置所有播放相关状态
+                this.episodes = [];
+                this.currentEpIndex = 0;
+                this.currentPlayUrl = '';
+                this.currentPlayType = 0;
+                this.currentPlayTitle = '';
+                this.playerInitialized = false;
+                this.watchedEpisodes = [];
+
+                // 销毁旧的播放器
+                if(this.dp) {
+                    this.dp.destroy();
+                    this.dp = null;
+                }
+
+                axios.get('/api/video/detail/' + this.videoId).then(res => {
+                    if(res.data.code === 200) {
+                        this.video = res.data.data;
+
+                        // 解析剧集 JSON - 统一处理所有情况
+                        if (this.video.type === 'SERIES') {
+                            if (this.video.episodes && this.video.episodes.trim() !== '' && this.video.episodes !== '[]') {
+                                try {
+                                    this.episodes = JSON.parse(this.video.episodes);
+                                } catch(e) {
+                                    console.error('解析episodes失败:', e);
+                                    this.episodes = [];
+                                }
+                            } else {
+                                this.episodes = [];
+                            }
+                        }
+
+                        // 视频数据加载完成后，加载观看进度
+                        this.loadWatchProgress();
+
+                        // 调试：输出播放源状态
+                        console.log('===== 播放源检查 =====');
+                        console.log('视频类型:', this.video.type);
+                        console.log('playUrl:', this.video.playUrl);
+                        console.log('episodes原始数据:', this.video.episodes);
+                        console.log('episodes解析后:', this.episodes);
+                        console.log('hasValidEpisodes:', this.hasValidEpisodes);
+                        console.log('hasPlaySource:', this.hasPlaySource);
+                        console.log('=====================');
+                    } else {
+                        this.error = '加载影片信息失败';
+                    }
+                }).catch(err => {
+                    this.error = '网络错误，请稍后重试';
+                    console.error(err);
+                }).finally(() => {
+                    this.loading = false;
+                });
+            },
+            loadComments() {
+                axios.get('/api/comment/list', { params: { videoId: this.videoId } }).then(res => {
+                    if(res.data.code === 200) {
+                        this.comments = res.data.data || [];
+                    }
+                }).catch(err => {
+                    console.error('加载评论失败:', err);
+                });
+            },
+            loadMyComments() {
+                if(!this.currentUser) return;
+                axios.get('/api/comment/my', {
+                    params: { userId: this.currentUser.id, videoId: this.videoId }
+                }).then(res => {
+                    if(res.data.code === 200) {
+                        this.myComments = res.data.data || [];
+                    }
+                }).catch(err => {
+                    console.error('加载我的评论失败:', err);
+                });
+            },
+            checkStatus() {
+                if(!this.currentUser) return;
+                axios.get('/api/video/interaction', {
+                    params: { userId: this.currentUser.id, videoId: this.videoId }
+                }).then(res => {
+                    if(res.data.data) {
+                        this.isCollected = res.data.data.isCollected;
+                    }
+                });
+            },
+            toggleCollect() {
+                if (!this.currentUser) return alert('请先登录');
+                axios.post('/api/video/toggle-collect', {
+                    userId: this.currentUser.id,
+                    videoId: this.videoId
+                }).then(res => {
+                    this.isCollected = res.data.data;
+                });
+            },
+            submitComment() {
+                if (!this.currentUser) {
+                    alert('请先登录后再评价！');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                if(!this.myComment || this.myComment.trim() === '') {
+                    alert('请输入评论内容');
+                    return;
+                }
+                const data = {
+                    userId: this.currentUser.id,
+                    username: this.currentUser.username,
+                    videoId: this.videoId,
+                    rating: this.myRating,
+                    content: this.myComment.trim()
+                };
+                axios.post('/api/comment/submit', data).then(res => {
+                    if(res.data.code === 200) {
+                        const earnedPoints = res.data.data.pointsEarned || 0;
+                        alert('发布成功！' + (earnedPoints > 0 ? '获得1积分' : ''));
+                        this.myComment = '';
+                        this.loadComments();
+                        this.loadMyComments();
+                        this.refreshUserInfo();
+                    } else {
+                        alert(res.data.msg);
+                    }
+                });
+            },
+            startEdit(comment) {
+                this.editingCommentId = comment.id;
+                this.editContent = comment.content;
+            },
+            cancelEdit() {
+                this.editingCommentId = null;
+                this.editContent = '';
+            },
+            saveEdit(commentId) {
+                if(!this.editContent || this.editContent.trim() === '') {
+                    alert('评论内容不能为空');
+                    return;
+                }
+                axios.post('/api/comment/update', {
+                    commentId: commentId,
+                    userId: this.currentUser.id,
+                    rating: null,
+                    content: this.editContent.trim()
+                }).then(res => {
+                    if(res.data.code === 200) {
+                        alert('修改成功');
+                        this.editingCommentId = null;
+                        this.editContent = '';
+                        this.loadComments();
+                        this.loadMyComments();
+                    } else {
+                        alert(res.data.msg);
+                    }
+                });
+            },
+            deleteComment(commentId) {
+                if(!confirm('确定删除这条评论吗？')) return;
+                axios.post('/api/comment/delete', {
+                    commentId: commentId,
+                    userId: this.currentUser.id
+                }).then(res => {
+                    if(res.data.code === 200) {
+                        alert('删除成功');
+                        this.loadComments();
+                        this.loadMyComments();
+                    } else {
+                        alert(res.data.msg);
+                    }
+                });
+            },
+            imgError(event) {
+                event.target.src = "https://via.placeholder.com/300x400?text=No+Image";
+            },
+            refreshUserInfo() {
+                if(!this.currentUser) return;
+                axios.get('/api/user/current', { params: { id: this.currentUser.id } })
+                    .then(res => {
+                        if(res.data.code === 200) {
+                            this.currentUser = res.data.data;
+                            localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                        }
+                    });
+            },
+            formatDateTime(dateStr) {
+                if(!dateStr) return '';
+                const date = new Date(dateStr);
+                return date.toLocaleString('zh-CN');
+            },
+            formatTime(seconds) {
+                if (!seconds || seconds < 0) return '0:00';
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = Math.floor(seconds % 60);
+
+                if (hours > 0) {
+                    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                }
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            },
+
+            // 播放器相关方法
+            toggleSort() {
+                this.sortAsc = !this.sortAsc;
+            },
+            isWatched(index) {
+                return this.watchedEpisodes.includes(index);
+            },
+            playEpisode(index) {
+                const ep = this.episodes[index];
+                if (!ep) {
+                    alert('集数数据错误');
+                    return;
+                }
+                if (!ep.playUrl || ep.playUrl.trim() === '') {
+                    alert('该集暂无播放源');
+                    return;
+                }
+
+                this.currentEpIndex = index;
+                this.currentPlayUrl = ep.playUrl;
+                this.currentPlayType = ep.playSourceType || 0;
+                this.currentPlayTitle = this.video.title + ' - ' + ep.title;
+
+                // 如果是上次观看的集数，从上次的时间点继续播放
+                let startTime = 0;
+                if (this.lastWatchProgress && this.lastWatchProgress.episodeIndex === index) {
+                    startTime = this.lastWatchProgress.currentTime || 0;
+                }
+
+                this.renderPlayer(startTime);
+
+                // 滚动到页面顶部
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                // 更新观看历史
+                this.updateWatchHistory();
+            },
+            playMovie() {
+                if (!this.video.playUrl || this.video.playUrl.trim() === '') {
+                    alert('该影片暂无播放源');
+                    return;
+                }
+
+                this.currentEpIndex = 0;
+                this.currentPlayUrl = this.video.playUrl;
+                this.currentPlayType = this.video.playSourceType || 0;
+                this.currentPlayTitle = this.video.title;
+
+                // 从上次观看的时间点继续播放
+                let startTime = 0;
+                if (this.lastWatchProgress && this.lastWatchProgress.currentTime) {
+                    startTime = this.lastWatchProgress.currentTime;
+                }
+
+                this.renderPlayer(startTime);
+
+                // 滚动到页面顶部
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                // 更新观看历史
+                this.updateWatchHistory();
+            },
+            renderPlayer(startTime = null) {
+                if(this.dp) {
+                    this.dp.destroy();
+                    this.dp = null;
+                }
+
+                if (this.currentPlayType === 0 && this.currentPlayUrl) {
+                    this.$nextTick(() => {
+                        this.dp = new DPlayer({
+                            container: document.getElementById('mini-dplayer'),
+                            autoplay: false,  // 不自动播放
+                            theme: '#00d1b2',
+                            video: { url: this.currentPlayUrl, pic: this.video.localCoverPath || this.video.coverUrl }
+                        });
+
+                        // 标记播放器已初始化
+                        this.playerInitialized = true;
+
+                        // 如果有指定的开始时间，跳转到该时间点
+                        if (startTime && startTime > 0) {
+                            this.dp.on('loadedmetadata', () => {
+                                this.dp.seek(startTime);
+                            });
+                        }
+
+                        // 记录已观看集数
+                        if (!this.watchedEpisodes.includes(this.currentEpIndex)) {
+                            this.watchedEpisodes.push(this.currentEpIndex);
+                        }
+
+                        // 启动进度自动保存
+                        this.startProgressAutoSave();
+                    });
+                }
+            },
+            loadWatchProgress() {
+                const progressData = localStorage.getItem('watchProgress');
+                if (progressData) {
+                    try {
+                        const allProgress = JSON.parse(progressData);
+                        const progress = allProgress[this.videoId];
+                        if (progress) {
+                            // 保存上次观看的进度，但不自动播放
+                            this.lastWatchProgress = progress;
+
+                            // 对于剧集，设置当前集数为上次观看的集数
+                            if (this.video && this.video.type === 'SERIES' && progress.episodeIndex !== undefined) {
+                                this.currentEpIndex = progress.episodeIndex;
+                                // 标记为已观看
+                                if (!this.watchedEpisodes.includes(progress.episodeIndex)) {
+                                    this.watchedEpisodes.push(progress.episodeIndex);
+                                }
+                            }
+                        }
+                    } catch(e) {
+                        console.error('加载观看进度失败:', e);
+                    }
+                }
+            },
+            saveProgress() {
+                if (!this.video || !this.dp || !this.dp.video) return;
+
+                const currentTime = this.dp.video.currentTime || 0;
+                const duration = this.dp.video.duration || 0;
+
+                if (currentTime > 0) {
+                    const progressData = localStorage.getItem('watchProgress');
+                    let allProgress = {};
+
+                    if (progressData) {
+                        try {
+                            allProgress = JSON.parse(progressData);
+                        } catch(e) {}
+                    }
+
+                    const progressPercent = currentTime / duration;
+                    const saveTime = progressPercent > 0.9 ? 0 : currentTime;
+
+                    allProgress[this.videoId] = {
+                        episodeIndex: this.currentEpIndex,
+                        currentTime: saveTime,
+                        duration: duration,
+                        savedAt: new Date().toISOString()
+                    };
+
+                    localStorage.setItem('watchProgress', JSON.stringify(allProgress));
+                }
+            },
+            startProgressAutoSave() {
+                if (this.progressSaveInterval) {
+                    clearInterval(this.progressSaveInterval);
+                }
+                this.progressSaveInterval = setInterval(() => {
+                    this.saveProgress();
+                }, 5000);
+            },
+            updateWatchHistory() {
+                if (!this.video) return;
+
+                let viewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+                viewed = viewed.filter(v => v.id !== this.video.id);
+
+                let episodeTitle = '';
+                if (this.video.type === 'SERIES' && this.episodes.length > 0 && this.currentEpIndex < this.episodes.length) {
+                    episodeTitle = this.episodes[this.currentEpIndex].title;
+                }
+
+                viewed.unshift({
+                    id: this.video.id,
+                    title: this.video.title,
+                    coverUrl: this.video.coverUrl,
+                    score: this.video.score,
+                    year: this.video.year,
+                    region: this.video.region,
+                    currentEpisode: this.currentEpIndex,
+                    episodeTitle: episodeTitle,
+                    viewedAt: new Date().toISOString()
+                });
+
+                viewed = viewed.slice(0, 6);
+                localStorage.setItem('recentlyViewed', JSON.stringify(viewed));
+            },
+
+            // 反馈相关方法
+            loadMyFeedbacks() {
+                if (!this.currentUser) return;
+                axios.get('/api/feedback/my', {
+                    params: { userId: this.currentUser.id }
+                }).then(res => {
+                    if (res.data.code === 200) {
+                        this.myFeedbacks = res.data.data || [];
+                    }
+                }).catch(err => {
+                    console.error('加载反馈失败:', err);
+                });
+            },
+            submitFeedback() {
+                if (!this.currentUser) {
+                    alert('请先登录');
+                    return;
+                }
+
+                if (!this.feedbackForm.title || this.feedbackForm.title.trim() === '') {
+                    alert('请输入反馈标题');
+                    return;
+                }
+
+                if (!this.feedbackForm.content || this.feedbackForm.content.trim() === '') {
+                    alert('请输入反馈内容');
+                    return;
+                }
+
+                const data = {
+                    userId: this.currentUser.id,
+                    username: this.currentUser.username,
+                    title: this.feedbackForm.title.trim(),
+                    content: this.feedbackForm.content.trim(),
+                    category: this.feedbackForm.category
+                };
+
+                axios.post('/api/feedback/submit', data).then(res => {
+                    if (res.data.code === 200) {
+                        alert('反馈提交成功！我们会尽快处理您的反馈。');
+                        this.feedbackForm = { title: '', content: '', category: 'bug' };
+                        this.showFeedbackModal = false;
+                        this.loadMyFeedbacks();
+                    } else {
+                        alert(res.data.msg);
+                    }
+                }).catch(err => {
+                    alert('提交失败，请稍后重试');
+                    console.error(err);
+                });
+            }
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

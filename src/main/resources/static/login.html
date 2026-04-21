@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>登录/注册 - SpringVideo</title>
+    <link rel="stylesheet" href="css/common.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body { background: var(--bg-primary); display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; margin: 0; }
+        .box { background: var(--bg-secondary); padding: var(--spacing-xl); border-radius: var(--radius-lg); width: 350px; color: var(--text-primary); text-align: center; box-shadow: var(--shadow-lg); }
+        h2 { color: var(--color-primary); margin-bottom: var(--spacing-xl); }
+        input { width: 100%; padding: 10px; margin-bottom: var(--spacing-md); background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--radius-sm); box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: var(--color-primary); border: none; color: white; font-weight: bold; border-radius: var(--radius-sm); cursor: pointer; }
+        button:hover { background: #f57c00; }
+        .toggle { margin-top: var(--spacing-lg); font-size: 12px; color: var(--text-tertiary); cursor: pointer; }
+        .toggle:hover { color: var(--color-primary); }
+    </style>
+</head>
+<body>
+<div id="app" class="box">
+    <h2>{{ isLogin ? '登录' : '注册新账号' }}</h2>
+
+    <input type="text" v-model="form.username" placeholder="用户名">
+    <input type="password" v-model="form.password" placeholder="密码">
+
+
+    <button @click="submit">{{ isLogin ? '登录' : '立即注册' }}</button>
+
+    <div class="toggle" @click="isLogin = !isLogin">
+        {{ isLogin ? '没有账号？点此注册' : '已有账号？点此登录' }}
+    </div>
+</div>
+
+<script>
+    const { createApp } = Vue;
+    createApp({
+        data() {
+            return {
+                isLogin: true,
+                form: { username: '', password: '', preferences: '' }
+            }
+        },
+        methods: {
+            submit() {
+                const url = this.isLogin ? '/api/user/login' : '/api/user/register';
+                axios.post(url, this.form).then(res => {
+                    if (res.data.code === 200) {
+                        // 登录/注册成功，把用户信息存到浏览器 LocalStorage
+                        const user = res.data.data;
+                        localStorage.setItem('currentUser', JSON.stringify(user));
+
+                        alert(this.isLogin ? '登录成功！' : '注册成功！');
+
+                        // 如果是管理员，跳去管理页，否则跳去首页
+                        if (user.role === 'admin') {
+                            window.location.href = 'admin.html';
+                        } else {
+                            window.location.href = 'index.html';
+                        }
+                    } else {
+                        alert(res.data.msg);
+                    }
+                });
+            }
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

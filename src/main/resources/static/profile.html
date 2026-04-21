@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>个人中心 - SpringVideo</title>
+    <link rel="stylesheet" href="css/common.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        .container { max-width: 1000px; margin: 0 auto; padding: var(--spacing-xl) var(--spacing-md); }
+        h1 { color: var(--color-primary); border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-sm); }
+        h3 { margin-top: var(--spacing-lg); color: var(--text-secondary); }
+
+        .tag-group { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); }
+        .tag-item {
+            background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 5px 15px; border-radius: var(--radius-full);
+            cursor: pointer; user-select: none; transition: all 0.2s; font-size: 14px;
+        }
+        .tag-item.active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+        .tag-item:hover { border-color: var(--color-primary); }
+
+        .btn-save { background: var(--color-primary); color: white; border: none; padding: 12px 30px; font-size: 16px; border-radius: var(--radius-sm); cursor: pointer; width: 100%; margin-top: var(--spacing-lg); }
+        .btn-save:hover { background: #f57c00; }
+        .btn-back { background: transparent; color: var(--text-tertiary); border: none; cursor: pointer; text-decoration: underline; margin-bottom: var(--spacing-sm); display: inline-block;}
+
+        /* 新增：管理员入口按钮样式 */
+        .btn-admin {
+            background-color: #ff4d4f; /* 醒目的红色 */
+            color: white;
+            padding: 8px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            float: right; /* 靠右显示 */
+            font-weight: bold;
+        }
+        .btn-admin:hover { background-color: #ff7875; }
+
+        /* 收藏列表样式 */
+        .collection-section {
+            background: var(--bg-elevated);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-lg);
+        }
+        .collection-title {
+            color: var(--color-primary);
+            font-size: 18px;
+            margin-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: var(--spacing-sm);
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: var(--spacing-md);
+        }
+        .video-card {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .video-card:hover { transform: translateY(-3px); }
+        .cover-wrapper {
+            position: relative;
+            height: 200px;
+            overflow: hidden;
+        }
+        .cover {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .score-tag {
+            position: absolute;
+            right: 5px;
+            bottom: 5px;
+            background: rgba(0,0,0,0.7);
+            color: var(--color-primary);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .info { padding: 8px; }
+        .title {
+            margin: 0;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-primary);
+        }
+        .meta {
+            color: var(--text-tertiary);
+            font-size: 11px;
+            margin-top: 4px;
+        }
+        .empty-tip {
+            text-align: center;
+            padding: var(--spacing-xl);
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            border: 1px dashed var(--border-color);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: var(--spacing-md); opacity: 0.5; }
+        .empty-title { font-size: 16px; color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
+        .empty-desc { font-size: 13px; color: var(--text-muted); }
+
+        /* 继续观看进度提示 */
+        .progress-hint {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .view-time {
+            color: var(--color-primary);
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        /* 积分和请求样式 */
+        .points-display {
+            background: linear-gradient(135deg, var(--color-primary) 0%, #ff5722 100%);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .points-label { font-size: 14px; opacity: 0.9; }
+        .points-value { font-size: 28px; font-weight: bold; }
+
+        .request-form {
+            background: var(--bg-tertiary);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+        .request-form input, .request-form textarea {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-sm);
+            box-sizing: border-box;
+        }
+        .btn-submit {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-submit:hover { background: #f57c00; }
+        .points-cost {
+            font-size: 12px;
+            color: var(--color-primary);
+            margin-top: 5px;
+        }
+
+        .request-item {
+            background: var(--bg-tertiary);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-sm);
+            border-left: 3px solid var(--text-muted);
+        }
+        .request-item.status-PENDING { border-left-color: var(--color-primary); }
+        .request-item.status-APPROVED { border-left-color: var(--color-success); }
+        .request-item.status-REJECTED { border-left-color: var(--color-danger); }
+
+        .request-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .request-title { font-weight: bold; color: var(--text-primary); }
+        .request-status {
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+        }
+        .status-PENDING { background: var(--color-primary); color: white; }
+        .status-APPROVED { background: var(--color-success); color: white; }
+        .status-REJECTED { background: var(--color-danger); color: white; }
+
+        .request-desc { color: var(--text-tertiary); font-size: 13px; margin-bottom: 8px; }
+        .request-reply {
+            background: var(--bg-primary);
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .reply-label { color: var(--color-primary); font-weight: bold; margin-bottom: 5px; }
+        .request-time { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+
+        /* 继续观看播放覆盖层 */
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none; /* 让点击事件穿透到父元素 */
+        }
+        .video-card:hover .play-overlay {
+            opacity: 1;
+        }
+        .play-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--color-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            padding-left: 4px;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="navbar">
+        <a class="logo" href="index.html">SpringVideo</a>
+        <div class="nav-links">
+            <a class="nav-link" href="index.html">首页</a>
+            <a class="nav-link active">个人中心</a>
+            <a v-if="user.role === 'admin'" class="nav-link" href="admin.html">后台管理</a>
+        </div>
+        <div class="right-panel">
+            <div class="user-panel">
+                <span style="color: var(--text-secondary)">Hi, {{ user.username }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div style="margin-bottom: var(--spacing-md);">
+            <a href="index.html" class="btn-back">← 返回首页</a>
+        </div>
+
+        <h1>个人中心</h1>
+    <p>用户名: <strong>{{ user.username }}</strong>
+        <span v-if="user.role === 'admin'" style="background: var(--color-danger); font-size: 12px; padding: 2px 5px; border-radius: 4px; margin-left: 5px;">管理员</span>
+    </p>
+
+    <!-- 积分显示 -->
+    <div class="points-display">
+        <div>
+            <div class="points-label">我的积分</div>
+            <div style="font-size: 12px; opacity: 0.7;">评论影视可获得积分</div>
+        </div>
+        <div class="points-value">{{ user.points || 0 }} 🪙</div>
+    </div>
+
+    <div style="background: var(--bg-elevated); padding: 15px; border-radius: 8px; margin-top: 20px;">
+        <h2 style="margin-top: 0;">定制你的专属推荐</h2>
+        <p style="color: var(--text-tertiary); font-size: 13px;">请选择你感兴趣的标签，我们将根据你的选择优化推荐。</p>
+
+        <h3>类型偏好</h3>
+        <div class="tag-group">
+            <span class="tag-item" v-for="t in allTags.types" :key="t"
+                  :class="{active: myTags.includes(t)}" @click="toggleTag(t)">
+                {{ t }}
+            </span>
+        </div>
+
+        <h3>影视类型</h3>
+        <div class="tag-group">
+            <span class="tag-item" v-for="t in allTags.categories" :key="t"
+                  :class="{active: myTags.includes(t)}" @click="toggleTag(t)">
+                {{ t }}
+            </span>
+        </div>
+
+        <h3>地区偏好</h3>
+        <div class="tag-group">
+            <span class="tag-item" v-for="t in allTags.regions" :key="t"
+                  :class="{active: myTags.includes(t)}" @click="toggleTag(t)">
+                {{ t }}
+            </span>
+        </div>
+
+        <h3>语言偏好</h3>
+        <div class="tag-group">
+            <span class="tag-item" v-for="t in allTags.languages" :key="t"
+                  :class="{active: myTags.includes(t)}" @click="toggleTag(t)">
+                {{ t }}
+            </span>
+        </div>
+
+        <div style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+            <p>已选标签: <span style="color: var(--color-primary)">{{ myTags.join(', ') }}</span></p>
+        </div>
+
+        <button class="btn-save" @click="savePreferences">保存修改</button>
+    </div>
+
+    <!-- 我的收藏区域 -->
+    <div class="collection-section">
+        <h2 class="collection-title">我的收藏</h2>
+        <div v-if="collectedVideos.length > 0" class="video-grid">
+            <div class="video-card" v-for="video in collectedVideos" :key="video.id" @click="goToDetail(video.id)">
+                <div class="cover-wrapper">
+                    <img :src="video.localCoverPath || video.coverUrl" class="cover" alt="封面" loading="lazy" @error="imgError">
+                    <div class="score-tag">{{ video.score }}</div>
+                </div>
+                <div class="info">
+                    <h3 class="title">{{ video.title }}</h3>
+                    <div class="meta" v-if="video.year || video.region">
+                        <template v-if="video.year">{{ video.year }}</template><template v-if="video.year && video.region"> / </template><template v-if="video.region">{{ video.region }}</template>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div v-else class="empty-tip">
+            <div class="empty-icon">⭐</div>
+            <div class="empty-title">还没有收藏</div>
+            <div class="empty-desc">快去首页发现你喜欢的影视吧~</div>
+        </div>
+    </div>
+
+    <!-- 继续观看区域 -->
+    <div class="collection-section">
+        <h2 class="collection-title">📺 继续观看</h2>
+        <div v-if="recentlyViewed.length > 0" class="video-grid">
+            <div class="video-card" v-for="video in recentlyViewed" :key="video.id" @click="goToPlay(video.id)">
+                <div class="cover-wrapper">
+                    <img :src="video.localCoverPath || video.coverUrl" class="cover" alt="封面" loading="lazy" @error="imgError">
+                    <div class="score-tag">{{ video.score || 'N/A' }}</div>
+                    <div class="play-overlay">
+                        <div class="play-icon">▶</div>
+                    </div>
+                    <!-- 进度提示 -->
+                    <div class="progress-hint" v-if="video.episodeTitle || video.currentEpisode !== undefined">
+                        {{ video.episodeTitle || ('第 ' + (video.currentEpisode + 1) + ' 集') }}
+                    </div>
+                </div>
+                <div class="info">
+                    <h3 class="title">{{ video.title }}</h3>
+                    <div class="meta" v-if="video.year || video.region">
+                        <template v-if="video.year">{{ video.year }}</template><template v-if="video.year && video.region"> / </template><template v-if="video.region">{{ video.region }}</template>
+                    </div>
+                    <div class="view-time">{{ formatViewTime(video.viewedAt) }}</div>
+                </div>
+            </div>
+        </div>
+        <div v-else class="empty-tip">
+            <div class="empty-icon">📺</div>
+            <div class="empty-title">还没有观看记录</div>
+            <div class="empty-desc">去首页发现你喜欢的影视吧~</div>
+        </div>
+    </div>
+
+    <!-- 我的期待区域 -->
+    <div class="collection-section">
+        <h2 class="collection-title">我的期待</h2>
+
+        <!-- 请求表单 -->
+        <div class="request-form">
+            <h4 style="margin-top: 0; color: var(--color-primary);">请求新增影片</h4>
+            <input type="text" v-model="newRequest.title" placeholder="输入影片名称" maxlength="100">
+            <textarea v-model="newRequest.description" placeholder="描述信息（可选）" rows="2" maxlength="500"></textarea>
+            <div class="points-cost">消耗 3 积分 · 当前积分: {{ user.points || 0 }}</div>
+            <button class="btn-submit" @click="submitRequest" :disabled="user.points < 3">
+                提交请求 (3积分)
+            </button>
+        </div>
+
+        <!-- 请求列表 -->
+        <div v-if="myRequests.length > 0">
+            <div class="request-item" v-for="req in myRequests" :key="req.id"
+                 :class="'status-' + req.status">
+                <div class="request-header">
+                    <span class="request-title">{{ req.videoTitle }}</span>
+                    <span class="request-status" :class="'status-' + req.status">
+                        {{ req.status === 'PENDING' ? '待处理' : req.status === 'APPROVED' ? '已采纳' : '已拒绝' }}
+                    </span>
+                </div>
+                <div class="request-desc" v-if="req.description">{{ req.description }}</div>
+                <div class="request-reply" v-if="req.adminReply">
+                    <div class="reply-label">管理员回复：</div>
+                    <div>{{ req.adminReply }}</div>
+                </div>
+                <div class="request-time">
+                    提交时间: {{ formatDate(req.createTime) }}
+                    <span v-if="req.replyTime"> · 回复时间: {{ formatDate(req.replyTime) }}</span>
+                </div>
+            </div>
+        </div>
+        <div v-else class="empty-tip">
+            <div class="empty-icon">📋</div>
+            <div class="empty-title">还没有提交过请求</div>
+            <div class="empty-desc">想看什么影片？消耗3积分告诉我们吧~</div>
+        </div>
+    </div>
+    </div>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                user: {},
+                myTags: [],
+                collectedVideos: [], // 收藏的视频列表
+                recentlyViewed: [], // 最近观看的视频列表
+                myRequests: [], // 我的请求列表
+                newRequest: { title: '', description: '' }, // 新请求表单
+                allTags: {
+                    // 新增 types
+                    types: ["电影", "剧集"],
+
+                    categories: [
+                        "剧情", "喜剧", "动作", "爱情", "科幻", "悬疑", "惊悚", "恐怖", "犯罪",
+                        "同性", "音乐", "歌舞", "传记", "历史", "战争", "西部", "奇幻", "冒险",
+                        "灾难", "武侠", "古装", "青春", "家庭", "儿童", "运动", "纪录片","动画",
+                        "偶像", "宫廷", "谍战", "军旅", "警匪", "神话", "穿越", "商战", "校园"
+                    ],
+                    regions: [
+                        "中国大陆", "中国香港", "中国台湾", "美国", "韩国", "日本", "欧洲", "其他"
+                    ],
+                    languages: [
+                        "国语", "粤语", "英语", "韩语", "日语", "沪语", "法语", "德语", "其他语言"
+                    ]
+                }
+            }
+        },
+        mounted() {
+            // 注册 Service Worker（图片缓存）
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => {
+                        console.log('[SW] 注册成功:', reg.scope);
+                    })
+                    .catch(err => {
+                        console.log('[SW] 注册失败:', err);
+                    });
+            }
+
+            // 1. 获取当前登录用户
+            const userStr = localStorage.getItem('currentUser');
+            if (!userStr) {
+                alert("请先登录");
+                window.location.href = 'login.html';
+                return;
+            }
+            this.user = JSON.parse(userStr);
+
+            // 2. 初始化已选标签
+            if (this.user.preferences) {
+                this.myTags = this.user.preferences.split(',');
+            }
+
+            // 3. 获取收藏列表
+            this.fetchCollectedVideos();
+
+            // 4. 获取最近观看列表
+            this.loadRecentlyViewed();
+
+            // 5. 获取请求列表
+            this.fetchMyRequests();
+
+            // 6. 刷新用户信息（获取最新积分）
+            this.refreshUserInfo();
+        },
+        methods: {
+            toggleTag(tag) {
+                if (this.myTags.includes(tag)) {
+                    this.myTags = this.myTags.filter(t => t !== tag);
+                } else {
+                    this.myTags.push(tag);
+                }
+            },
+            savePreferences() {
+                const prefStr = this.myTags.join(',');
+
+                const updateData = {
+                    id: this.user.id,
+                    username: this.user.username,
+                    password: this.user.password,
+                    preferences: prefStr
+                };
+
+                axios.post('/api/user/update', updateData).then(res => {
+                    if (res.data.code === 200) {
+                        this.user.preferences = prefStr;
+                        localStorage.setItem('currentUser', JSON.stringify(this.user));
+                        alert('喜好保存成功！推荐已更新。');
+                    } else {
+                        alert('保存失败: ' + res.data.msg);
+                    }
+                });
+            },
+            fetchCollectedVideos() {
+                axios.get('/api/video/collected', { params: { userId: this.user.id } })
+                    .then(res => {
+                        if (res.data.code === 200) {
+                            this.collectedVideos = res.data.data;
+                        }
+                    });
+            },
+            loadRecentlyViewed() {
+                // 从 localStorage 加载最近观看
+                const viewed = localStorage.getItem('recentlyViewed');
+                if (viewed) {
+                    this.recentlyViewed = JSON.parse(viewed);
+                }
+                // 监听 storage 事件，当其他标签页更新时同步
+                window.addEventListener('storage', (e) => {
+                    if (e.key === 'recentlyViewed' && e.newValue) {
+                        this.recentlyViewed = JSON.parse(e.newValue);
+                    }
+                });
+            },
+            trackView(videoId) {
+                // 从 collectedVideos 中找到对应的视频
+                const video = this.collectedVideos.find(v => v.id === videoId) ||
+                             this.recentlyViewed.find(v => v.id === videoId);
+                if (!video) return;
+
+                // 获取当前观看历史
+                let viewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+                // 移除已存在的记录（如果有的话）
+                viewed = viewed.filter(v => v.id !== videoId);
+                // 添加到前面
+                viewed.unshift({
+                    id: video.id,
+                    title: video.title,
+                    coverUrl: video.coverUrl,
+                    score: video.score,
+                    year: video.year,
+                    region: video.region,
+                    progress: 0,
+                    viewedAt: new Date().toISOString()
+                });
+                // 只保留最近6条
+                viewed = viewed.slice(0, 6);
+                localStorage.setItem('recentlyViewed', JSON.stringify(viewd));
+                this.recentlyViewed = viewed;
+            },
+            goToDetail(id) {
+                // 先跳转，确保无论什么情况都能正常跳转
+                window.location.href = 'detail.html?id=' + id;
+                // 然后记录观看历史（跳转后异步执行，不影响跳转）
+                this.trackView(id);
+            },
+            // 直接跳转到详情页面（播放功能已集成）
+            goToPlay(id) {
+                // 先跳转，确保无论什么情况都能正常跳转
+                window.location.href = 'detail.html?id=' + id;
+                // 然后记录观看历史（跳转后异步执行，不影响跳转）
+                this.trackView(id);
+            },
+            // 刷新用户信息
+            refreshUserInfo() {
+                axios.get('/api/user/current?id=' + this.user.id).then(res => {
+                    if (res.data.code === 200) {
+                        this.user = res.data.data;
+                        localStorage.setItem('currentUser', JSON.stringify(this.user));
+                    }
+                });
+            },
+            // 获取我的请求列表
+            fetchMyRequests() {
+                axios.get('/api/request/my', { params: { userId: this.user.id } })
+                    .then(res => {
+                        if (res.data.code === 200) {
+                            this.myRequests = res.data.data;
+                        }
+                    });
+            },
+            // 提交请求
+            submitRequest() {
+                if (!this.newRequest.title || this.newRequest.title.trim() === '') {
+                    alert('请输入影片名称');
+                    return;
+                }
+                if ((this.user.points || 0) < 3) {
+                    alert('积分不足，需要3积分才能提交请求');
+                    return;
+                }
+
+                axios.post('/api/request/submit', {
+                    userId: this.user.id,
+                    videoTitle: this.newRequest.title.trim(),
+                    description: this.newRequest.description.trim()
+                }).then(res => {
+                    if (res.data.code === 200) {
+                        alert('请求提交成功！消耗3积分');
+                        this.newRequest = { title: '', description: '' };
+                        this.refreshUserInfo();
+                        this.fetchMyRequests();
+                    } else {
+                        alert(res.data.msg);
+                    }
+                });
+            },
+            // 格式化日期
+            formatDate(dateStr) {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                return date.toLocaleString('zh-CN');
+            },
+            // 格式化观看时间（相对时间）
+            formatViewTime(dateStr) {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                const now = new Date();
+                const diff = now - date;
+                const minutes = Math.floor(diff / 60000);
+                const hours = Math.floor(diff / 3600000);
+                const days = Math.floor(diff / 86400000);
+
+                if (minutes < 1) return '刚刚观看';
+                if (minutes < 60) return minutes + '分钟前观看';
+                if (hours < 24) return hours + '小时前观看';
+                if (days < 7) return days + '天前观看';
+                return date.toLocaleDateString('zh-CN');
+            },
+            imgError(event) {
+                event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="140" height="200" viewBox="0 0 140 200"%3E%3Crect fill="%23222" width="140" height="200"/%3E%3Ctext fill="%23666" font-family="Arial" font-size="16" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3E暂无封面%3C/text%3E%3C/svg%3E';
+            }
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>
