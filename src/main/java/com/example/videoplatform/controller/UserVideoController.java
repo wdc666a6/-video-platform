@@ -54,6 +54,7 @@ public class UserVideoController {
         PageResult<Video> pageResult = videoService.findVideosPage(keyword, type, category, region, year, language, sort, page, pageSize);
         return Result.success(pageResult);
     }
+
     // 推荐接口
     // GET /api/video/recommend?userId=1
     @GetMapping("/recommend")
@@ -61,26 +62,21 @@ public class UserVideoController {
         List<Video> list = videoService.getRecommendations(userId);
         return Result.success(list);
     }
-    // 1. 获取视频详情
+
+    // 获取视频详情
     @GetMapping("/detail/{id}")
     public Result<Video> detail(@PathVariable Long id) {
         Video video = videoService.findById(id);
         return Result.success(video);
     }
 
-    // 2. 获取该视频下的评论
-    @GetMapping("/comments")
-    public Result<List<Interaction>> getComments(@RequestParam Long videoId) {
-        return Result.success(interactionService.getComments(videoId));
-    }
-
-    // 1. 获取我的交互状态 (用于详情页判断我是否已收藏)
+    // 获取我的交互状态 (用于详情页判断我是否已收藏)
     @GetMapping("/interaction")
     public Result<Interaction> getInteraction(@RequestParam Long userId, @RequestParam Long videoId) {
         return Result.success(interactionService.getInteraction(userId, videoId));
     }
 
-    // 2. 切换收藏状态
+    // 切换收藏状态
     @PostMapping("/toggle-collect")
     public Result<Boolean> toggleCollected(@RequestBody java.util.Map<String, Object> params) {
         Long userId = Long.valueOf(params.get("userId").toString());
@@ -89,36 +85,10 @@ public class UserVideoController {
         return Result.success(isCollected);
     }
 
-    // 3. 获取用户的收藏列表
+    // 获取用户的收藏列表
     @GetMapping("/collected")
     public Result<List<Video>> getCollectedList(@RequestParam Long userId) {
         List<Video> list = videoService.getCollectedVideos(userId);
         return Result.success(list);
-    }
-
-    // 4. 提交评论 (逻辑微调，调用 saveComment)
-    @PostMapping("/interact")
-    public Result<String> interact(@RequestBody java.util.Map<String, Object> params) {
-        Long userId = Long.valueOf(params.get("userId").toString());
-        Long videoId = Long.valueOf(params.get("videoId").toString());
-        Double rating = params.get("rating") != null ? Double.valueOf(params.get("rating").toString()) : null;
-        String comment = (String) params.get("comment");
-
-        interactionService.saveComment(userId, videoId, rating, comment);
-        return Result.success("评论发布成功");
-    }
-
-    // 5. 删除自己的评论
-    @PostMapping("/comment/delete")
-    public Result<String> deleteMyComment(@RequestBody java.util.Map<String, Object> params) {
-        Long userId = Long.valueOf(params.get("userId").toString());
-        Long interactionId = Long.valueOf(params.get("interactionId").toString());
-
-        try {
-            interactionService.deleteMyComment(userId, interactionId);
-            return Result.success("删除成功");
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
     }
 }

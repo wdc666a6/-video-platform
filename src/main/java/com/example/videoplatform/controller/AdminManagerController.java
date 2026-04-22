@@ -2,11 +2,9 @@ package com.example.videoplatform.controller;
 
 import com.example.videoplatform.common.Result;
 import com.example.videoplatform.entity.Comment;
-import com.example.videoplatform.entity.Interaction;
 import com.example.videoplatform.entity.Request;
 import com.example.videoplatform.entity.User;
 import com.example.videoplatform.service.CommentService;
-import com.example.videoplatform.service.InteractionService;
 import com.example.videoplatform.service.RequestService;
 import com.example.videoplatform.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,9 +18,6 @@ public class AdminManagerController {
 
     @Autowired
     private UserService userService;
-
-    @Autowired
-    private InteractionService interactionService;
 
     @Autowired
     private RequestService requestService;

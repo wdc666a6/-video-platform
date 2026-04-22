@@ -14,7 +14,4 @@ public interface InteractionRepository extends JpaRepository<Interaction, Long> 
 
     // 查找某人收藏的所有视频记录
     List<Interaction> findByUserIdAndIsCollectedTrue(Long userId);
-    // 查某个视频的所有评论 (按时间倒序)
-    // SQL: select * from t_interaction where video_id = ? order by create_time desc
-    List<Interaction> findByVideoIdOrderByCreateTimeDesc(Long videoId);
 }

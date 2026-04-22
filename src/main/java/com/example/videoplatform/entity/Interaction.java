@@ -14,20 +14,13 @@ public class Interaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId; // 谁
-    private Long videoId; // 哪个视频
+    private Long userId; // 用户ID
+    private Long videoId; // 视频ID
 
     @JsonProperty("isCollected")
     private boolean isCollected; // 是否已收藏 (true/false)
 
-    private Double rating; // 用户打分 (1-10分)，没打分就是null
-
-    @Column(length = 500)
-    private String comment; // 用户评论
-
-    private Integer pointsEarned; // 从该视频获得的积分（最多2分）
-
-    private Date createTime; // 操作时间
+    private Date createTime; // 创建时间
 
     // 显式添加getter/setter方法以确保编译通过
     public Long getId() { return id; }
@@ -40,16 +33,7 @@ public class Interaction {
     public void setVideoId(Long videoId) { this.videoId = videoId; }
 
     public boolean isCollected() { return isCollected; }
-    public void setCollected(boolean collected) { isCollected = collected; }
-
-    public Double getRating() { return rating; }
-    public void setRating(Double rating) { this.rating = rating; }
-
-    public String getComment() { return comment; }
-    public void setComment(String comment) { this.comment = comment; }
-
-    public Integer getPointsEarned() { return pointsEarned; }
-    public void setPointsEarned(Integer pointsEarned) { this.pointsEarned = pointsEarned; }
+    public void setCollected(boolean collected) { this.isCollected = collected; }
 
     public Date getCreateTime() { return createTime; }
     public void setCreateTime(Date createTime) { this.createTime = createTime; }
